@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks } from "@/lib/db/schema";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -22,6 +22,8 @@ async function getRecentActivities(userId: string, excludeActivityId: string) {
   return db.query.activities.findMany({
     where: and(
       eq(activities.userId, userId),
+      gte(activities.startDate, sevenDaysAgo),
+      ne(activities.id, excludeActivityId)
     ),
     orderBy: [desc(activities.startDate)],
     limit: 5,

@@ -1,5 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { calculateTrainingLoad } from "./calculations";
+import { calculateTrainingLoad, hasNegativeSplit } from "./calculations";
+import type { StravaSplit } from "@/lib/strava/types";
+
+// Helper to create a mock split
+function createSplit(distance: number, moving_time: number): StravaSplit {
+  return {
+    distance,
+    moving_time,
+    elapsed_time: moving_time,
+    elevation_difference: 0,
+    split: 1,
+    average_speed: distance > 0 ? distance / moving_time : 0,
+  };
+}
 
 describe("calculateTrainingLoad", () => {
   test("should return correct training load for valid inputs", () => {
@@ -25,25 +38,63 @@ describe("calculateTrainingLoad", () => {
   });
 
   test("should handle averageHeartRate less than 60", () => {
-    // Avg 50, Max 200. Reserve 140. IF = -10/140 = -0.07. IF^2 = 0.005. Load ~ 0.5 -> 1.
-    // Should be a positive number close to 0
     const result = calculateTrainingLoad(3600, 50, 200);
     expect(result).toBeGreaterThanOrEqual(0);
     expect(result).toBeLessThan(5);
   });
 
-  // Edge cases that might fail with current implementation
-
   test("should handle maxHeartRate equal to 60", () => {
-    // Current implementation: (70-60)/(60-60) = 10/0 = Infinity.
-    // Desired: null or 0.
     const result = calculateTrainingLoad(3600, 70, 60);
     expect(result).toBeNull();
   });
 
   test("should handle maxHeartRate less than 60", () => {
-     // Current implementation: (70-60)/(50-60) = 10/-10 = -1. IF^2 = 1. Load = 100.
-     // Desired: null (invalid max HR).
-     expect(calculateTrainingLoad(3600, 70, 50)).toBeNull();
+    expect(calculateTrainingLoad(3600, 70, 50)).toBeNull();
   });
+});
+
+describe("hasNegativeSplit", () => {
+  test("should return false for empty or insufficient splits", () => {
+    expect(hasNegativeSplit([])).toBe(false);
+    expect(hasNegativeSplit([createSplit(1000, 300)])).toBe(false);
+  });
+
+  test("should return true for negative split (second half faster)", () => {
+    const splits = [
+      createSplit(1000, 300), // 3:00/km
+      createSplit(1000, 300), // 3:00/km
+      createSplit(1000, 290), // 2:54/km
+      createSplit(1000, 290), // 2:54/km
+    ];
+    expect(hasNegativeSplit(splits)).toBe(true);
+  });
+
+  test("should return false for positive split (first half faster)", () => {
+    const splits = [
+      createSplit(1000, 290), // 2:54/km
+      createSplit(1000, 290), // 2:54/km
+      createSplit(1000, 300), // 3:00/km
+      createSplit(1000, 300), // 3:00/km
+    ];
+    expect(hasNegativeSplit(splits)).toBe(false);
+  });
+
+  test("should handle odd number of splits (middle split goes to second half)", () => {
+    const splits = [
+      createSplit(1000, 300), // 0: 3:00
+      createSplit(1000, 300), // 1: 3:00
+      createSplit(1000, 200), // 2: 2:00 (very fast)
+      createSplit(1000, 300), // 3: 3:00
+      createSplit(1000, 300), // 4: 3:00
+    ];
+    expect(hasNegativeSplit(splits)).toBe(true);
+  });
+
+  test("should handle zero distance splits gracefully", () => {
+    const splits = [
+      createSplit(0, 300),
+      createSplit(0, 300),
+    ];
+    expect(hasNegativeSplit(splits)).toBe(false);
+  })
 });

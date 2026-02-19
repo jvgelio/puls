@@ -36,8 +36,7 @@ function calculateAveragePace(splits: StravaSplit[]): number {
  * Returns percentage increase
  */
 export function calculateCardiacDrift(
-  heartRateData: number[],
-  timeData: number[]
+  heartRateData: number[]
 ): number | null {
   if (!heartRateData || heartRateData.length < 10) return null;
 

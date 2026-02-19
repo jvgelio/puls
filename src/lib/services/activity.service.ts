@@ -1,5 +1,5 @@
 import { db } from "@/lib/db/client";
-import { activities, aiFeedbacks } from "@/lib/db/schema";
+import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { createStravaClient } from "@/lib/strava/api";
 import { generateFeedback } from "./ai.service";
 import { eq, and } from "drizzle-orm";
@@ -127,6 +127,20 @@ export async function processActivity(
 
   // Fetch complete activity data from Strava
   const data = await fetchActivityData(stravaActivityId, accessToken);
+
+  // Verify ownership to prevent IDOR
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { stravaId: true },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (data.activity.athlete.id !== user.stravaId) {
+    throw new Error("Activity ownership mismatch");
+  }
 
   // Save to database
   const activityId = await saveActivity(userId, data);

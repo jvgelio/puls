@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks } from "@/lib/db/schema";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -22,6 +22,8 @@ async function getRecentActivities(userId: string, excludeActivityId: string) {
   return db.query.activities.findMany({
     where: and(
       eq(activities.userId, userId),
+      ne(activities.id, excludeActivityId),
+      gte(activities.startDate, sevenDaysAgo),
     ),
     orderBy: [desc(activities.startDate)],
     limit: 5,
@@ -41,7 +43,6 @@ function buildFeedbackPrompt(
 
   // Format recent activities summary
   const recentSummary = recentActivities
-    .filter((a) => a.id !== activity.id)
     .map((a) => {
       const d = parseFloat(a.distanceMeters || "0") / 1000;
       const t = a.movingTimeSeconds || 0;

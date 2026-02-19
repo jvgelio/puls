@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE } from "../constants";
+
 /**
  * Format distance in kilometers
  */
@@ -110,9 +112,12 @@ export function formatCalories(calories: number): string {
 /**
  * Format date to local string
  */
-export function formatDate(date: Date | string): string {
+export function formatDate(
+  date: Date | string,
+  locale: string = DEFAULT_LOCALE
+): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString(locale, {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -123,9 +128,12 @@ export function formatDate(date: Date | string): string {
 /**
  * Format date to short string
  */
-export function formatDateShort(date: Date | string): string {
+export function formatDateShort(
+  date: Date | string,
+  locale: string = DEFAULT_LOCALE
+): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString(locale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -135,9 +143,12 @@ export function formatDateShort(date: Date | string): string {
 /**
  * Format time
  */
-export function formatTime(date: Date | string): string {
+export function formatTime(
+  date: Date | string,
+  locale: string = DEFAULT_LOCALE
+): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString("pt-BR", {
+  return d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -146,7 +157,10 @@ export function formatTime(date: Date | string): string {
 /**
  * Format relative time (e.g., "2 hours ago")
  */
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(
+  date: Date | string,
+  locale: string = DEFAULT_LOCALE
+): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -159,7 +173,7 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffHours < 24) return `há ${diffHours}h`;
   if (diffDays === 1) return "ontem";
   if (diffDays < 7) return `há ${diffDays} dias`;
-  return formatDateShort(d);
+  return formatDateShort(d, locale);
 }
 
 /**

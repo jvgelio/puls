@@ -85,7 +85,7 @@ export const authConfig: NextAuthConfig = {
       }
 
       const expiresAt = new Date((account.expires_at ?? 0) * 1000);
-      console.log(`[PULS-AUTH] Processing sign in for Strava ID: ${stravaId}`);
+      console.log("[PULS-AUTH] Processing sign in");
 
       // Find or create user
       let dbUser = await db.query.users.findFirst({
@@ -93,7 +93,7 @@ export const authConfig: NextAuthConfig = {
       });
 
       if (!dbUser) {
-        console.log(`[PULS-AUTH] Creating NEW user for Strava ID: ${stravaId}`);
+        console.log("[PULS-AUTH] Creating NEW user");
         const [newUser] = await db
           .insert(users)
           .values({
@@ -105,7 +105,7 @@ export const authConfig: NextAuthConfig = {
           .returning();
         dbUser = newUser;
       } else {
-        console.log(`[PULS-AUTH] Found EXISTING user for Strava ID: ${stravaId} (Internal ID: ${dbUser.id}). Updating info...`);
+        console.log("[PULS-AUTH] Found EXISTING user. Updating info...");
         // Update user info
         await db
           .update(users)
@@ -124,7 +124,7 @@ export const authConfig: NextAuthConfig = {
       });
 
       if (existingToken) {
-        console.log(`[PULS-AUTH] Updating OAuth tokens for user ${dbUser.id}`);
+        console.log("[PULS-AUTH] Updating OAuth tokens");
         await db
           .update(oauthTokens)
           .set({
@@ -136,7 +136,7 @@ export const authConfig: NextAuthConfig = {
           })
           .where(eq(oauthTokens.id, existingToken.id));
       } else {
-        console.log(`[PULS-AUTH] Inserting NEW OAuth tokens for user ${dbUser.id}`);
+        console.log("[PULS-AUTH] Inserting NEW OAuth tokens");
         await db.insert(oauthTokens).values({
           userId: dbUser.id,
           accessToken: account.access_token!,
@@ -156,7 +156,7 @@ export const authConfig: NextAuthConfig = {
       if (account && user) {
         const stravaId = profile?.id ? Number(profile.id) : (user.id ? Number(user.id) : null);
 
-        console.log(`[PULS-AUTH] JWT Callback for Strava ID: ${stravaId}`);
+        console.log("[PULS-AUTH] JWT Callback");
 
         if (stravaId) {
           const dbUser = await db.query.users.findFirst({
@@ -164,7 +164,7 @@ export const authConfig: NextAuthConfig = {
           });
 
           if (!dbUser) {
-            console.error(`[PULS-AUTH] CRITICAL: User not found in JWT callback for Strava ID ${stravaId}`);
+            console.error("[PULS-AUTH] CRITICAL: User not found in JWT callback");
             // checking for race condition - maybe wait a bit? 
             // But generally signIn should have finished.
             throw new Error("User not found in database during JWT creation");

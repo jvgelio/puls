@@ -1,5 +1,7 @@
-
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { describe, test, it, expect, mock, beforeEach } from "bun:test";
+import { processActivity, getWeeklyStats } from "@/lib/services/activity.service";
+import { db } from "@/lib/db/client";
+import { inspect } from "util";
 
 // Mock data
 const MOCK_USER_ID = "user-123";
@@ -12,6 +14,7 @@ const mockFindUser = mock();
 const mockFindActivity = mock();
 const mockInsertActivity = mock();
 const mockUpdateActivity = mock();
+const mockFindManyActivities = mock(async () => []);
 
 // Mock Strava API functions
 const mockGetActivity = mock();
@@ -27,6 +30,7 @@ mock.module("@/lib/db/client", () => ({
       },
       activities: {
         findFirst: mockFindActivity,
+        findMany: mockFindManyActivities,
       },
     },
     insert: mock(() => ({
@@ -62,9 +66,6 @@ mock.module("drizzle-orm", () => ({
   eq: mock((col, val) => ({ col, val })),
   and: mock((...args) => args),
 }));
-
-// Import the service under test
-import { processActivity } from "@/lib/services/activity.service";
 
 describe("processActivity Security Tests", () => {
   beforeEach(() => {
@@ -141,7 +142,7 @@ describe("processActivity Security Tests", () => {
     expect(mockInsertActivity).toHaveBeenCalled();
   });
 
-    test("should THROW error if user is not found", async () => {
+  test("should THROW error if user is not found", async () => {
     // Arrange: User not found
     mockFindUser.mockResolvedValue(null);
     mockGetActivity.mockResolvedValue({
@@ -153,5 +154,52 @@ describe("processActivity Security Tests", () => {
     expect(
       processActivity(MOCK_ACTIVITY_ID, MOCK_USER_ID, "token", false)
     ).rejects.toThrow("User not found");
+  });
+});
+
+describe("getWeeklyStats", () => {
+  it("should calculate stats correctly and use efficient query", async () => {
+    const userId = "test-user-id";
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Create some dummy activities
+    const dummyActivities = [
+      {
+        userId,
+        startDate: new Date(now.getTime() - 1000 * 60 * 60), // 1 hour ago (this week)
+        distanceMeters: "1000",
+        movingTimeSeconds: 3600,
+        calories: 500,
+      },
+      {
+        userId,
+        startDate: new Date(startOfWeek.getTime() - 1000 * 60 * 60 * 24), // 1 day before start of week
+        distanceMeters: "2000",
+        movingTimeSeconds: 7200,
+        calories: 1000,
+      },
+    ];
+
+    mockFindManyActivities.mockResolvedValue(dummyActivities);
+
+    const stats = await getWeeklyStats(userId);
+
+    expect(mockFindManyActivities).toHaveBeenCalled();
+    const args = mockFindManyActivities.mock.calls[0][0];
+
+    const whereInspect = inspect(args.where, { depth: null, colors: false });
+
+    // Assert that the query includes the start_date filter
+    expect(whereInspect).toContain("start_date");
+    expect(whereInspect).toContain(">=");
+
+    // Verify that all returned activities were processed
+    expect(stats.totalDistance).toBe(3000);
+    expect(stats.totalTime).toBe(3600 + 7200);
+    expect(stats.totalActivities).toBe(2);
+    expect(stats.totalCalories).toBe(500 + 1000);
   });
 });

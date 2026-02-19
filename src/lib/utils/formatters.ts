@@ -1,5 +1,6 @@
 import { formatDistanceToNow, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DEFAULT_LOCALE } from "../constants";
 
 /**
  * Format distance in kilometers
@@ -118,6 +119,7 @@ export function formatDate(
   locale: string = DEFAULT_LOCALE
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleDateString(locale, {
     weekday: "long",
     year: "numeric",
@@ -134,6 +136,7 @@ export function formatDateShort(
   locale: string = DEFAULT_LOCALE
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleDateString(locale, {
     day: "2-digit",
     month: "2-digit",
@@ -149,6 +152,7 @@ export function formatTime(
   locale: string = DEFAULT_LOCALE
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",

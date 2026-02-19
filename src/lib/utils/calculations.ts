@@ -92,6 +92,9 @@ export function calculateTrainingLoad(
 ): number | null {
   if (!averageHeartRate || !maxHeartRate) return null;
 
+  // Ensure maxHeartRate is reasonable (> 60) to avoid division by zero or negative reserve
+  if (maxHeartRate <= 60) return null;
+
   // Simplified intensity factor based on HR
   const hrReserve = maxHeartRate - 60; // Assuming 60 bpm rest HR
   const intensityFactor = (averageHeartRate - 60) / hrReserve;

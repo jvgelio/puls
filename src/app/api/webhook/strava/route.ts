@@ -29,8 +29,6 @@ export async function POST(request: NextRequest) {
     console.log("Received Strava webhook event:", {
       object_type: event.object_type,
       aspect_type: event.aspect_type,
-      object_id: event.object_id,
-      owner_id: event.owner_id,
     });
 
     // Only process activity events
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      console.log(`User not found for Strava ID: ${event.owner_id}`);
+      console.log("User not found for Strava ID");
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -60,7 +58,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!token) {
-      console.log(`Token not found for user: ${user.id}`);
+      console.log("Token not found for user");
       return new NextResponse("OK", { status: 200 });
     }
 

@@ -38,6 +38,7 @@ export interface StravaRefreshResponse {
 
 export interface StravaActivity {
   id: number;
+  athlete: { id: number };
   name: string;
   distance: number;
   moving_time: number;

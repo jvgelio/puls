@@ -2,7 +2,7 @@ import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks } from "@/lib/db/schema";
 import { createStravaClient } from "@/lib/strava/api";
 import { generateFeedback } from "./ai.service";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import type { StravaActivity, StravaStreamsResponse, StravaLap } from "@/lib/strava/types";
 
 interface ActivityData {
@@ -174,13 +174,12 @@ export async function getWeeklyStats(userId: string) {
   const weekActivities = await db.query.activities.findMany({
     where: and(
       eq(activities.userId, userId),
+      gte(activities.startDate, startOfWeek)
     ),
   });
 
   // Filter activities from this week
-  const thisWeekActivities = weekActivities.filter(
-    (a) => a.startDate && new Date(a.startDate) >= startOfWeek
-  );
+  const thisWeekActivities = weekActivities;
 
   const totalDistance = thisWeekActivities.reduce(
     (sum, a) => sum + (parseFloat(a.distanceMeters || "0") || 0),

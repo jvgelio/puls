@@ -7,6 +7,11 @@ export default auth((req) => {
     !req.nextUrl.pathname.startsWith("/api/webhook") &&
     !req.nextUrl.pathname.startsWith("/api/auth");
 
+  const isPublicRoute = req.nextUrl.pathname.startsWith("/login") ||
+    req.nextUrl.pathname.startsWith("/api");
+
+  if (isPublicRoute) return NextResponse.next();
+
   if (isOnDashboard && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
   }

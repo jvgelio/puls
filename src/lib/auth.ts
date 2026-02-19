@@ -38,22 +38,32 @@ declare module "next-auth" {
 }
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
+  secret: process.env.AUTH_SECRET,
+  debug: true,
   providers: [
     {
       id: "strava",
       name: "Strava",
       type: "oauth",
+
+
+      clientId: process.env.STRAVA_CLIENT_ID,
+      clientSecret: process.env.STRAVA_CLIENT_SECRET,
+      checks: ["state"],
+      client: {
+        token_endpoint_auth_method: "client_secret_post",
+      },
       authorization: {
         url: "https://www.strava.com/oauth/authorize",
         params: {
           scope: "read,activity:read_all,profile:read_all",
           approval_prompt: "force",
+          response_type: "code",
         },
       },
       token: "https://www.strava.com/oauth/token",
       userinfo: "https://www.strava.com/api/v3/athlete",
-      clientId: process.env.STRAVA_CLIENT_ID,
-      clientSecret: process.env.STRAVA_CLIENT_SECRET,
       profile(profile) {
         return {
           id: String(profile.id),

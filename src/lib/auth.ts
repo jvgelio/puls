@@ -149,24 +149,36 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
 
-    async jwt({ token, account, user }): Promise<ExtendedJWT> {
+    async jwt({ token, account, user, profile }): Promise<ExtendedJWT> {
       const extToken = token as ExtendedJWT;
 
       // Initial sign in
-      if (account && user && user.id) {
-        const stravaId = parseInt(user.id);
-        const dbUser = await db.query.users.findFirst({
-          where: eq(users.stravaId, stravaId),
-        });
+      if (account && user) {
+        const stravaId = profile?.id ? Number(profile.id) : (user.id ? Number(user.id) : null);
 
-        return {
-          ...extToken,
-          userId: dbUser!.id,
-          stravaId,
-          accessToken: account.access_token!,
-          refreshToken: account.refresh_token!,
-          expiresAt: (account.expires_at ?? 0) * 1000,
-        };
+        console.log(`[PULS-AUTH] JWT Callback for Strava ID: ${stravaId}`);
+
+        if (stravaId) {
+          const dbUser = await db.query.users.findFirst({
+            where: eq(users.stravaId, stravaId),
+          });
+
+          if (!dbUser) {
+            console.error(`[PULS-AUTH] CRITICAL: User not found in JWT callback for Strava ID ${stravaId}`);
+            // checking for race condition - maybe wait a bit? 
+            // But generally signIn should have finished.
+            throw new Error("User not found in database during JWT creation");
+          }
+
+          return {
+            ...extToken,
+            userId: dbUser.id,
+            stravaId,
+            accessToken: account.access_token!,
+            refreshToken: account.refresh_token!,
+            expiresAt: (account.expires_at ?? 0) * 1000,
+          };
+        }
       }
 
       // Return previous token if not expired

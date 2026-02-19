@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks } from "@/lib/db/schema";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -22,6 +22,8 @@ async function getRecentActivities(userId: string, excludeActivityId: string) {
   return db.query.activities.findMany({
     where: and(
       eq(activities.userId, userId),
+      ne(activities.id, excludeActivityId),
+      gte(activities.startDate, sevenDaysAgo),
     ),
     orderBy: [desc(activities.startDate)],
     limit: 5,
@@ -41,7 +43,6 @@ function buildFeedbackPrompt(
 
   // Format recent activities summary
   const recentSummary = recentActivities
-    .filter((a) => a.id !== activity.id)
     .map((a) => {
       const d = parseFloat(a.distanceMeters || "0") / 1000;
       const t = a.movingTimeSeconds || 0;
@@ -54,14 +55,14 @@ function buildFeedbackPrompt(
   const splits = rawPayload?.splits_metric || rawPayload?.splits_standard || [];
   const splitsInfo = Array.isArray(splits) && splits.length > 0
     ? `Splits por km: ${splits.slice(0, 5).map((s: { average_speed?: number }) => {
-        if (s.average_speed && s.average_speed > 0) {
-          const paceMinutes = 1000 / (s.average_speed * 60);
-          const mins = Math.floor(paceMinutes);
-          const secs = Math.round((paceMinutes - mins) * 60);
-          return `${mins}:${secs.toString().padStart(2, "0")}`;
-        }
-        return "N/A";
-      }).join(", ")}${splits.length > 5 ? "..." : ""}`
+      if (s.average_speed && s.average_speed > 0) {
+        const paceMinutes = 1000 / (s.average_speed * 60);
+        const mins = Math.floor(paceMinutes);
+        const secs = Math.round((paceMinutes - mins) * 60);
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+      }
+      return "N/A";
+    }).join(", ")}${splits.length > 5 ? "..." : ""}`
     : "";
 
   return `Você é um treinador de corrida/ciclismo experiente analisando um treino.

@@ -4,6 +4,7 @@ import { users, oauthTokens } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { processActivity } from "@/lib/services/activity.service";
 import type { StravaWebhookEvent } from "@/lib/strava/types";
+import { safeCompare } from "@/lib/security";
 
 // Webhook validation (GET request from Strava during subscription setup)
 export async function GET(request: NextRequest) {
@@ -12,8 +13,14 @@ export async function GET(request: NextRequest) {
   const mode = searchParams.get("hub.mode");
   const challenge = searchParams.get("hub.challenge");
   const verifyToken = searchParams.get("hub.verify_token");
+  const expectedToken = process.env.STRAVA_VERIFY_TOKEN;
 
-  if (mode === "subscribe" && verifyToken === process.env.STRAVA_VERIFY_TOKEN) {
+  if (
+    mode === "subscribe" &&
+    verifyToken &&
+    expectedToken &&
+    safeCompare(verifyToken, expectedToken)
+  ) {
     console.log("Webhook verified successfully");
     return NextResponse.json({ "hub.challenge": challenge });
   }
@@ -29,8 +36,6 @@ export async function POST(request: NextRequest) {
     console.log("Received Strava webhook event:", {
       object_type: event.object_type,
       aspect_type: event.aspect_type,
-      object_id: event.object_id,
-      owner_id: event.owner_id,
     });
 
     // Only process activity events
@@ -50,7 +55,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      console.log(`User not found for Strava ID: ${event.owner_id}`);
+      console.log("User not found for Strava ID");
       return new NextResponse("OK", { status: 200 });
     }
 
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!token) {
-      console.log(`Token not found for user: ${user.id}`);
+      console.log("Token not found for user");
       return new NextResponse("OK", { status: 200 });
     }
 

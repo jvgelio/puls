@@ -1,8 +1,8 @@
 import { db } from "@/lib/db/client";
-import { activities, aiFeedbacks } from "@/lib/db/schema";
+import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { createStravaClient } from "@/lib/strava/api";
 import { generateFeedback } from "./ai.service";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import type { StravaActivity, StravaStreamsResponse, StravaLap } from "@/lib/strava/types";
 
 interface ActivityData {
@@ -49,6 +49,27 @@ async function saveActivity(
 ): Promise<string> {
   const { activity, streams, laps } = data;
 
+  const commonData = {
+    name: activity.name,
+    sportType: activity.sport_type,
+    startDate: new Date(activity.start_date),
+    distanceMeters: activity.distance.toString(),
+    movingTimeSeconds: activity.moving_time,
+    elapsedTimeSeconds: activity.elapsed_time,
+    averageSpeed: activity.average_speed.toString(),
+    maxSpeed: activity.max_speed.toString(),
+    hasHeartrate: activity.has_heartrate,
+    averageHeartrate: activity.average_heartrate?.toString(),
+    maxHeartrate: activity.max_heartrate?.toString(),
+    totalElevationGain: activity.total_elevation_gain.toString(),
+    averageCadence: activity.average_cadence?.toString(),
+    calories: activity.calories,
+    rawPayload: activity,
+    streamsPayload: streams,
+    lapsPayload: laps,
+    segmentsPayload: activity.segment_efforts,
+  };
+
   // Check if activity already exists
   const existing = await db.query.activities.findFirst({
     where: eq(activities.stravaId, activity.id),
@@ -59,24 +80,7 @@ async function saveActivity(
     await db
       .update(activities)
       .set({
-        name: activity.name,
-        sportType: activity.sport_type,
-        startDate: new Date(activity.start_date),
-        distanceMeters: activity.distance.toString(),
-        movingTimeSeconds: activity.moving_time,
-        elapsedTimeSeconds: activity.elapsed_time,
-        averageSpeed: activity.average_speed.toString(),
-        maxSpeed: activity.max_speed.toString(),
-        hasHeartrate: activity.has_heartrate,
-        averageHeartrate: activity.average_heartrate?.toString(),
-        maxHeartrate: activity.max_heartrate?.toString(),
-        totalElevationGain: activity.total_elevation_gain.toString(),
-        averageCadence: activity.average_cadence?.toString(),
-        calories: activity.calories,
-        rawPayload: activity,
-        streamsPayload: streams,
-        lapsPayload: laps,
-        segmentsPayload: activity.segment_efforts,
+        ...commonData,
         updatedAt: new Date(),
       })
       .where(eq(activities.id, existing.id));
@@ -90,24 +94,7 @@ async function saveActivity(
     .values({
       userId,
       stravaId: activity.id,
-      name: activity.name,
-      sportType: activity.sport_type,
-      startDate: new Date(activity.start_date),
-      distanceMeters: activity.distance.toString(),
-      movingTimeSeconds: activity.moving_time,
-      elapsedTimeSeconds: activity.elapsed_time,
-      averageSpeed: activity.average_speed.toString(),
-      maxSpeed: activity.max_speed.toString(),
-      hasHeartrate: activity.has_heartrate,
-      averageHeartrate: activity.average_heartrate?.toString(),
-      maxHeartrate: activity.max_heartrate?.toString(),
-      totalElevationGain: activity.total_elevation_gain.toString(),
-      averageCadence: activity.average_cadence?.toString(),
-      calories: activity.calories,
-      rawPayload: activity,
-      streamsPayload: streams,
-      lapsPayload: laps,
-      segmentsPayload: activity.segment_efforts,
+      ...commonData,
     })
     .returning();
 
@@ -127,6 +114,20 @@ export async function processActivity(
 
   // Fetch complete activity data from Strava
   const data = await fetchActivityData(stravaActivityId, accessToken);
+
+  // Verify ownership to prevent IDOR
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { stravaId: true },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (data.activity.athlete.id !== user.stravaId) {
+    throw new Error("Activity ownership mismatch");
+  }
 
   // Save to database
   const activityId = await saveActivity(userId, data);
@@ -187,13 +188,12 @@ export async function getWeeklyStats(userId: string) {
   const weekActivities = await db.query.activities.findMany({
     where: and(
       eq(activities.userId, userId),
+      gte(activities.startDate, startOfWeek)
     ),
   });
 
   // Filter activities from this week
-  const thisWeekActivities = weekActivities.filter(
-    (a) => a.startDate && new Date(a.startDate) >= startOfWeek
-  );
+  const thisWeekActivities = weekActivities;
 
   const totalDistance = thisWeekActivities.reduce(
     (sum, a) => sum + (parseFloat(a.distanceMeters || "0") || 0),

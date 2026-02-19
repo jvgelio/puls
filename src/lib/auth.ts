@@ -75,17 +75,17 @@ export const authConfig: NextAuthConfig = {
     },
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (!account || account.provider !== "strava") {
+    async signIn({ user, account, profile }) {
+      if (!account || account.provider !== "strava") return false;
+
+      const stravaId = profile?.id ? Number(profile.id) : (user.id ? Number(user.id) : null);
+      if (!stravaId) {
+        console.error("[PULS-AUTH] No Strava ID found in profile or user object");
         return false;
       }
 
-      if (!user.id) {
-        return false;
-      }
-
-      const stravaId = parseInt(user.id);
       const expiresAt = new Date((account.expires_at ?? 0) * 1000);
+      console.log(`[PULS-AUTH] Processing sign in for Strava ID: ${stravaId}`);
 
       // Find or create user
       let dbUser = await db.query.users.findFirst({
@@ -93,6 +93,7 @@ export const authConfig: NextAuthConfig = {
       });
 
       if (!dbUser) {
+        console.log(`[PULS-AUTH] Creating NEW user for Strava ID: ${stravaId}`);
         const [newUser] = await db
           .insert(users)
           .values({
@@ -104,6 +105,7 @@ export const authConfig: NextAuthConfig = {
           .returning();
         dbUser = newUser;
       } else {
+        console.log(`[PULS-AUTH] Found EXISTING user for Strava ID: ${stravaId} (Internal ID: ${dbUser.id}). Updating info...`);
         // Update user info
         await db
           .update(users)
@@ -122,6 +124,7 @@ export const authConfig: NextAuthConfig = {
       });
 
       if (existingToken) {
+        console.log(`[PULS-AUTH] Updating OAuth tokens for user ${dbUser.id}`);
         await db
           .update(oauthTokens)
           .set({
@@ -133,6 +136,7 @@ export const authConfig: NextAuthConfig = {
           })
           .where(eq(oauthTokens.id, existingToken.id));
       } else {
+        console.log(`[PULS-AUTH] Inserting NEW OAuth tokens for user ${dbUser.id}`);
         await db.insert(oauthTokens).values({
           userId: dbUser.id,
           accessToken: account.access_token!,

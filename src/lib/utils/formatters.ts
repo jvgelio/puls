@@ -1,4 +1,5 @@
-import { DEFAULT_LOCALE } from "../constants";
+import { formatDistanceToNow, differenceInDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 /**
  * Format distance in kilometers
@@ -163,17 +164,12 @@ export function formatRelativeTime(
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffMins < 1) return "agora";
-  if (diffMins < 60) return `há ${diffMins}min`;
-  if (diffHours < 24) return `há ${diffHours}h`;
-  if (diffDays === 1) return "ontem";
-  if (diffDays < 7) return `há ${diffDays} dias`;
-  return formatDateShort(d, locale);
+  if (differenceInDays(now, d) < 7) {
+    return formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
+  }
+
+  return formatDateShort(d);
 }
 
 /**

@@ -49,6 +49,27 @@ async function saveActivity(
 ): Promise<string> {
   const { activity, streams, laps } = data;
 
+  const commonData = {
+    name: activity.name,
+    sportType: activity.sport_type,
+    startDate: new Date(activity.start_date),
+    distanceMeters: activity.distance.toString(),
+    movingTimeSeconds: activity.moving_time,
+    elapsedTimeSeconds: activity.elapsed_time,
+    averageSpeed: activity.average_speed.toString(),
+    maxSpeed: activity.max_speed.toString(),
+    hasHeartrate: activity.has_heartrate,
+    averageHeartrate: activity.average_heartrate?.toString(),
+    maxHeartrate: activity.max_heartrate?.toString(),
+    totalElevationGain: activity.total_elevation_gain.toString(),
+    averageCadence: activity.average_cadence?.toString(),
+    calories: activity.calories,
+    rawPayload: activity,
+    streamsPayload: streams,
+    lapsPayload: laps,
+    segmentsPayload: activity.segment_efforts,
+  };
+
   // Check if activity already exists
   const existing = await db.query.activities.findFirst({
     where: eq(activities.stravaId, activity.id),
@@ -59,24 +80,7 @@ async function saveActivity(
     await db
       .update(activities)
       .set({
-        name: activity.name,
-        sportType: activity.sport_type,
-        startDate: new Date(activity.start_date),
-        distanceMeters: activity.distance.toString(),
-        movingTimeSeconds: activity.moving_time,
-        elapsedTimeSeconds: activity.elapsed_time,
-        averageSpeed: activity.average_speed.toString(),
-        maxSpeed: activity.max_speed.toString(),
-        hasHeartrate: activity.has_heartrate,
-        averageHeartrate: activity.average_heartrate?.toString(),
-        maxHeartrate: activity.max_heartrate?.toString(),
-        totalElevationGain: activity.total_elevation_gain.toString(),
-        averageCadence: activity.average_cadence?.toString(),
-        calories: activity.calories,
-        rawPayload: activity,
-        streamsPayload: streams,
-        lapsPayload: laps,
-        segmentsPayload: activity.segment_efforts,
+        ...commonData,
         updatedAt: new Date(),
       })
       .where(eq(activities.id, existing.id));
@@ -90,24 +94,7 @@ async function saveActivity(
     .values({
       userId,
       stravaId: activity.id,
-      name: activity.name,
-      sportType: activity.sport_type,
-      startDate: new Date(activity.start_date),
-      distanceMeters: activity.distance.toString(),
-      movingTimeSeconds: activity.moving_time,
-      elapsedTimeSeconds: activity.elapsed_time,
-      averageSpeed: activity.average_speed.toString(),
-      maxSpeed: activity.max_speed.toString(),
-      hasHeartrate: activity.has_heartrate,
-      averageHeartrate: activity.average_heartrate?.toString(),
-      maxHeartrate: activity.max_heartrate?.toString(),
-      totalElevationGain: activity.total_elevation_gain.toString(),
-      averageCadence: activity.average_cadence?.toString(),
-      calories: activity.calories,
-      rawPayload: activity,
-      streamsPayload: streams,
-      lapsPayload: laps,
-      segmentsPayload: activity.segment_efforts,
+      ...commonData,
     })
     .returning();
 

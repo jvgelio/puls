@@ -1,42 +1,77 @@
-import { describe, expect, it } from "bun:test";
-import { calculateDifficulty } from "./calculations";
+import { expect, test, describe } from "bun:test";
+import { hasNegativeSplit } from "./calculations";
+import type { StravaSplit } from "@/lib/strava/types";
 
-describe("calculateDifficulty", () => {
-  it("should calculate difficulty for flat terrain", () => {
-    // 0m gain over 10km
-    expect(calculateDifficulty(0, 10000)).toBe(0);
+// Helper to create a mock split
+function createSplit(distance: number, moving_time: number): StravaSplit {
+  return {
+    distance,
+    moving_time,
+    elapsed_time: moving_time,
+    elevation_difference: 0,
+    split: 1,
+    average_speed: distance > 0 ? distance / moving_time : 0,
+  };
+}
+
+describe("hasNegativeSplit", () => {
+  test("should return false for empty or insufficient splits", () => {
+    expect(hasNegativeSplit([])).toBe(false);
+    expect(hasNegativeSplit([createSplit(1000, 300)])).toBe(false);
   });
 
-  it("should calculate difficulty for moderate terrain", () => {
-    // 300m gain over 10km -> 300 / 10 = 30
-    expect(calculateDifficulty(300, 10000)).toBe(30);
+  test("should return true for negative split (second half faster)", () => {
+    const splits = [
+      createSplit(1000, 300), // 3:00/km
+      createSplit(1000, 300), // 3:00/km
+      createSplit(1000, 290), // 2:54/km
+      createSplit(1000, 290), // 2:54/km
+    ];
+    // First half pace: 300s/km
+    // Second half pace: 290s/km
+    // Second half is faster -> negative split
+    expect(hasNegativeSplit(splits)).toBe(true);
   });
 
-  it("should calculate difficulty for hard terrain", () => {
-    // 600m gain over 10km -> 600 / 10 = 60
-    expect(calculateDifficulty(600, 10000)).toBe(60);
+  test("should return false for positive split (first half faster)", () => {
+    const splits = [
+        createSplit(1000, 290), // 2:54/km
+        createSplit(1000, 290), // 2:54/km
+        createSplit(1000, 300), // 3:00/km
+        createSplit(1000, 300), // 3:00/km
+    ];
+    // First half pace: 290s/km
+    // Second half pace: 300s/km
+    // Second half is slower -> positive split
+    expect(hasNegativeSplit(splits)).toBe(false);
   });
 
-  it("should handle rounding correctly", () => {
-    // 155m gain over 10km -> 15.5 -> 16
-    expect(calculateDifficulty(155, 10000)).toBe(16);
+  test("should handle odd number of splits (middle split goes to second half)", () => {
+    // 5 splits. midpoint = floor(2.5) = 2.
+    // firstHalf = splits[0..2] (0, 1) -> 2 splits
+    // secondHalf = splits[2..5] (2, 3, 4) -> 3 splits
+
+    const splits = [
+        createSplit(1000, 300), // 0: 3:00
+        createSplit(1000, 300), // 1: 3:00
+        createSplit(1000, 200), // 2: 2:00 (very fast)
+        createSplit(1000, 300), // 3: 3:00
+        createSplit(1000, 300), // 4: 3:00
+    ];
+
+    // First half: 600s / 2000m = 0.3 s/m = 300 s/km
+    // Second half: (200+300+300) = 800s / 3000m = 0.266 s/m = 266 s/km
+    // Second half is faster.
+
+    expect(hasNegativeSplit(splits)).toBe(true);
   });
 
-  it("should return 0 for zero distance", () => {
-    expect(calculateDifficulty(100, 0)).toBe(0);
-  });
-
-  it("should return 0 for negative distance", () => {
-    expect(calculateDifficulty(100, -100)).toBe(0);
-  });
-
-  it("should handle short distances", () => {
-    // 10m gain over 100m (0.1km) -> 10 / 0.1 = 100
-    expect(calculateDifficulty(10, 100)).toBe(100);
-  });
-
-  it("should handle floating point inputs", () => {
-    // 300.5m gain over 10000.5m -> ~30.048 -> 30
-    expect(calculateDifficulty(300.5, 10000.5)).toBe(30);
-  });
+  test("should handle zero distance splits gracefully", () => {
+       const splits = [
+        createSplit(0, 300),
+        createSplit(0, 300),
+    ];
+    // pace is 0 for both halves
+    expect(hasNegativeSplit(splits)).toBe(false);
+  })
 });

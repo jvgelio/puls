@@ -112,6 +112,7 @@ export function formatCalories(calories: number): string {
  */
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleDateString("pt-BR", {
     weekday: "long",
     year: "numeric",
@@ -125,6 +126,7 @@ export function formatDate(date: Date | string): string {
  */
 export function formatDateShort(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -137,6 +139,7 @@ export function formatDateShort(date: Date | string): string {
  */
 export function formatTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Invalid Date";
   return d.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",

@@ -183,6 +183,12 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
     dailyLoad[dateKey] = (dailyLoad[dateKey] || 0) + load;
   }
 
+  // Ensure today is in the record if we want current metrics
+  const todayKey = new Date().toISOString().split("T")[0];
+  if (!dailyLoad[todayKey]) {
+    dailyLoad[todayKey] = 0;
+  }
+
   return dailyLoad;
 }
 
@@ -190,16 +196,27 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
  * Calculate a simple training load score
  */
 function calculateSimpleLoad(activity: Activity): number {
-  const duration = (activity.movingTimeSeconds || 0) / 3600; // hours
+  let seconds = activity.movingTimeSeconds || 0;
+  if (seconds > 500000) {
+    // Likely in milliseconds by mistake (500000 ms ~ 8 mins, 500000 sec is 138 hours)
+    // If it's over 138 hours, it's definitely milliseconds.
+    seconds = seconds / 1000;
+  }
+  const duration = seconds / 3600; // hours
   const distance = parseFloat(activity.distanceMeters || "0") / 1000; // km
-  const elevation = parseFloat(activity.totalElevationGain || "0");
+  let elevation = parseFloat(activity.totalElevationGain || "0");
+  if (elevation > 10000) {
+    elevation = elevation / 100; // just in case elevation is cm
+  }
 
   // Simple formula: duration * intensity factor
   const intensityFactor = activity.averageHeartrate
     ? parseFloat(activity.averageHeartrate) / 140
     : 1;
 
-  return Math.round(duration * intensityFactor * 50 + elevation * 0.1);
+  // Cap the load to a reasonable max per day to avoid math explosion (max 500 per activity)
+  let load = Math.round(duration * intensityFactor * 50 + elevation * 0.1);
+  return Math.min(Math.max(load, 0), 500);
 }
 
 /**
@@ -236,5 +253,44 @@ export function calculateRollingBounds(
       avg: avg
     };
   }
+  return result;
+}
+
+/**
+ * Calculate Fitness (CTL), Fatigue (ATL) and Form (TSB)
+ */
+export function calculateFitnessFatigue(
+  dailyLoad: Record<string, number>
+): Record<string, { ctl: number; atl: number; tsb: number; load: number }> {
+  const result: Record<string, { ctl: number; atl: number; tsb: number; load: number }> = {};
+  const dates = Object.keys(dailyLoad).sort();
+  if (dates.length === 0) return result;
+
+  const minDate = new Date(dates[0]);
+  const maxDate = new Date(); // Always calculate up to today
+  maxDate.setHours(0, 0, 0, 0);
+
+  let ctlYesterday = 0;
+  let atlYesterday = 0;
+
+  for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split("T")[0];
+    const load = dailyLoad[dateStr] || 0;
+
+    const ctlToday = ctlYesterday + (load - ctlYesterday) / 42;
+    const atlToday = atlYesterday + (load - atlYesterday) / 7;
+    const tsbToday = ctlYesterday - atlYesterday;
+
+    result[dateStr] = {
+      load,
+      ctl: ctlToday,
+      atl: atlToday,
+      tsb: tsbToday
+    };
+
+    ctlYesterday = ctlToday;
+    atlYesterday = atlToday;
+  }
+
   return result;
 }

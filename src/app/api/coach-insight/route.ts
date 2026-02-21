@@ -3,8 +3,11 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getWeeklyAggregates, getSportTypeDistribution } from "@/lib/services/metrics.service";
+import { getTrainingLoadTrend, calculateFitnessFatigue, calculateSimpleLoad } from "@/lib/services/metrics.service";
+import { getUserActivities } from "@/lib/services/activity.service";
 import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -54,15 +57,44 @@ export async function POST(req: Request) {
         model = DEFAULT_AI_MODEL;
     }
 
-    const weeks = await getWeeklyAggregates(userId, 2);
-    const totalDistance = weeks.reduce((acc, w) => acc + w.totalDistance, 0) / 1000;
-    const totalActivities = weeks.reduce((acc, w) => acc + w.activityCount, 0);
+    // 1. Metrics (Fitness, Fatigue, Form)
+    const trainingLoadTrend = await getTrainingLoadTrend(userId, 90);
+    const fitnessFatigueData = calculateFitnessFatigue(trainingLoadTrend);
+    const todayStr = new Date().toISOString().split("T")[0];
+    const currentMetrics = fitnessFatigueData[todayStr] || { ctl: 0, atl: 0, tsb: 0 };
 
-    const sportsDist = await getSportTypeDistribution(userId);
-    const sportsList = Object.keys(sportsDist).join(", ") || "nenhum";
+    // 2. Detailed activities (last 14 days)
+    const recentActivities = await getUserActivities(userId, { limit: 15 });
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    const prompt = `Atleta: ${totalActivities} treinos nos últimos 14 dias, ${totalDistance.toFixed(1)}km percorridos, esportes: ${sportsList}.
-Dê uma análise breve (máx 2 frases) e uma recomendação concreta. Responda apenas com o texto do feedback, sem json, sem aspas, em português brasileiro.`;
+    const filteredActivities = recentActivities.filter(a =>
+        a.startDate && new Date(a.startDate) >= fourteenDaysAgo
+    );
+
+    const activityLogs = filteredActivities.map(a => {
+        const date = a.startDate ? format(new Date(a.startDate), "dd/MM", { locale: ptBR }) : "??";
+        const dist = a.distanceMeters ? (parseFloat(a.distanceMeters) / 1000).toFixed(1) + "km" : "";
+        const time = a.movingTimeSeconds ? Math.round(a.movingTimeSeconds / 60) + "min" : "";
+        //@ts-ignore - internal usage
+        const load = calculateSimpleLoad(a);
+        return `- ${date}: ${a.sportType} (${a.name}), ${dist} ${time}, Carga: ${load}`;
+    }).join("\n");
+
+    const prompt = `Você é um treinador de performance experiente. Analise os dados do atleta abaixo e dê um feedback motivador, técnico e conciso (máx 3 frases).
+
+**Métricas Atuais:**
+- Fitness (CTL): ${currentMetrics.ctl.toFixed(1)}
+- Fadiga (ATL): ${currentMetrics.atl.toFixed(1)}
+- Forma (TSB): ${currentMetrics.tsb.toFixed(1)}
+
+**Histórico Recente (14 dias):**
+${activityLogs || "Nenhum treino registrado."}
+
+**Instruções:**
+1. Analise se a relação entre treino e descanso está equilibrada.
+2. Comente sobre a Forma (TSB): se estiver muito negativa (<-30), sugira descanso. Se estiver positiva (>5), sugira aumentar intensidade.
+3. Seja direto. Responda apenas com o feedback em português brasileiro, sem aspas.`;
 
     try {
         const response = await fetch(OPENROUTER_API_URL, {

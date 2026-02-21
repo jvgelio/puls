@@ -195,7 +195,7 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
 /**
  * Calculate a simple training load score
  */
-function calculateSimpleLoad(activity: Activity): number {
+export function calculateSimpleLoad(activity: Activity): number {
   let seconds = activity.movingTimeSeconds || 0;
   if (seconds > 500000) {
     // Likely in milliseconds by mistake (500000 ms ~ 8 mins, 500000 sec is 138 hours)

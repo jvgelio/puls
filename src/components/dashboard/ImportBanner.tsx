@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ImportBannerProps {
@@ -16,6 +16,8 @@ interface ImportProgress {
 
 export function ImportBanner({ userId }: ImportBannerProps) {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const labelId = useId();
+  const descId = useId();
 
   useEffect(() => {
     const checkProgress = async () => {
@@ -67,18 +69,26 @@ export function ImportBanner({ userId }: ImportBannerProps) {
       : 0;
 
   return (
-    <Card className="border-primary">
+    <Card className="border-primary" role="status" aria-live="polite">
       <CardContent className="py-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
+            <span id={labelId} className="text-sm font-medium">
               Importando atividades dos últimos 2 meses...
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span id={descId} className="text-sm text-muted-foreground">
               {progress.processed} / {progress.total}
             </span>
           </div>
-          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-labelledby={labelId}
+            aria-describedby={descId}
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-2 w-full bg-muted rounded-full overflow-hidden"
+          >
             <div
               className="h-full bg-primary transition-all duration-300"
               style={{ width: `${percentage}%` }}

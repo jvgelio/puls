@@ -12,7 +12,7 @@ import {
 
 export default function LoginPage() {
   const handleStravaLogin = () => {
-    signIn("strava", { callbackUrl: "/" });
+    signIn("strava", { callbackUrl: "/dashboard" });
   };
 
   return (

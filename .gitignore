@@ -43,3 +43,6 @@ next-env.d.ts
 # Local IDE and tool state
 .claude/
 .trigger/
+
+# Drizzle migrations
+src/lib/db/migrations

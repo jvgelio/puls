@@ -2,7 +2,7 @@ import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
-import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL, AI_MODEL_PRESETS } from "@/lib/ai-models";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -180,7 +180,13 @@ export async function generateFeedback(
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
-  const model = userRow?.aiModel || DEFAULT_AI_MODEL;
+  let model = userRow?.aiModel || DEFAULT_AI_MODEL;
+
+  // Safety fallback for known invalid/hallucinated model IDs from previous versions
+  const knownInvalid = ["google/gemini-2.5-flash-preview", "google/gemini-2.5-flash-lite", "openai/gpt-5-mini", "openai/gpt-5-nano", "anthropic/claude-haiku-4.5"];
+  if (knownInvalid.includes(model)) {
+    model = DEFAULT_AI_MODEL;
+  }
 
   const recentActivities = await getRecentActivities(userId, activityId);
   const prompt = buildFeedbackPrompt(activity, recentActivities);

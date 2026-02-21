@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL, AI_MODEL_PRESETS } from "@/lib/ai-models";
 
 const PRESETS = [
   {
@@ -11,31 +11,7 @@ const PRESETS = [
     label: "Auto",
     description: "OpenRouter escolhe o melhor modelo disponível (pode ser caro)",
   },
-  {
-    id: "google/gemini-2.5-flash-preview",
-    label: "Gemini 2.5 Flash",
-    description: "Rápido, econômico e de alta qualidade (recomendado)",
-  },
-  {
-    id: "google/gemini-flash-1.5",
-    label: "Gemini 1.5 Flash",
-    description: "Muito econômico, boa qualidade",
-  },
-  {
-    id: "anthropic/claude-haiku-4-5",
-    label: "Claude Haiku",
-    description: "Ótimo custo-benefício da Anthropic",
-  },
-  {
-    id: "openai/gpt-4o-mini",
-    label: "GPT-4o Mini",
-    description: "Modelo econômico da OpenAI",
-  },
-  {
-    id: "meta-llama/llama-3.1-8b-instruct:free",
-    label: "Llama 3.1 8B (grátis)",
-    description: "Gratuito com rate limit — pode falhar em picos de uso",
-  },
+  ...AI_MODEL_PRESETS,
 ];
 
 interface AIModelSettingsProps {
@@ -97,8 +73,8 @@ export function AIModelSettings({ initialModel }: AIModelSettingsProps) {
             <label
               key={preset.id}
               className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected === preset.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-muted/50"
                 }`}
             >
               <input
@@ -118,8 +94,8 @@ export function AIModelSettings({ initialModel }: AIModelSettingsProps) {
 
           <label
             className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected === "custom"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:bg-muted/50"
+              ? "border-primary bg-primary/5"
+              : "border-border hover:bg-muted/50"
               }`}
           >
             <input

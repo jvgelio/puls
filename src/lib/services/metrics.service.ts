@@ -201,3 +201,40 @@ function calculateSimpleLoad(activity: Activity): number {
 
   return Math.round(duration * intensityFactor * 50 + elevation * 0.1);
 }
+
+/**
+ * Calculate dynamic bounds for rolling average
+ */
+export function calculateRollingBounds(
+  dailyLoad: Record<string, number>,
+  windowDays: number = 28
+): Record<string, { upper: number; lower: number; avg: number }> {
+  const result: Record<string, { upper: number; lower: number; avg: number }> = {};
+  const dates = Object.keys(dailyLoad).sort();
+  if (dates.length === 0) return result;
+
+  const minDate = new Date(dates[0]);
+  const maxDate = new Date(dates[dates.length - 1]);
+
+  const currentWindow: number[] = [];
+
+  for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split("T")[0];
+    const load = dailyLoad[dateStr] || 0;
+
+    currentWindow.push(load);
+    if (currentWindow.length > windowDays) {
+      currentWindow.shift();
+    }
+
+    const sum = currentWindow.reduce((a, b) => a + b, 0);
+    const avg = currentWindow.length > 0 ? sum / currentWindow.length : 0;
+
+    result[dateStr] = {
+      upper: avg * 1.3,
+      lower: avg * 0.7,
+      avg: avg
+    };
+  }
+  return result;
+}

@@ -216,3 +216,40 @@ export async function getWeeklyStats(userId: string) {
     totalCalories,
   };
 }
+
+/**
+ * Get monthly stats for a user
+ */
+export async function getMonthlyStats(userId: string) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const monthActivities = await db.query.activities.findMany({
+    where: and(
+      eq(activities.userId, userId),
+      gte(activities.startDate, startOfMonth)
+    ),
+  });
+
+  const totalDistance = monthActivities.reduce(
+    (sum, a) => sum + (parseFloat(a.distanceMeters || "0") || 0),
+    0
+  );
+  const totalTime = monthActivities.reduce(
+    (sum, a) => sum + (a.movingTimeSeconds || 0),
+    0
+  );
+  const totalActivities = monthActivities.length;
+  const totalElevation = monthActivities.reduce(
+    (sum, a) => sum + (parseFloat(a.totalElevationGain || "0") || 0),
+    0
+  );
+
+  return {
+    totalDistance,
+    totalTime,
+    totalActivities,
+    totalElevation,
+  };
+}

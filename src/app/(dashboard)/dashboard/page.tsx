@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getWeeklyStats, getUserActivities } from "@/lib/services/activity.service";
+import { getWeeklyStats, getUserActivities, getMonthlyStats } from "@/lib/services/activity.service";
+import { getTrainingLoadTrend, calculateRollingBounds } from "@/lib/services/metrics.service";
 import {
   needsHistoricalImport,
   startBackgroundImport,
@@ -9,8 +10,12 @@ import { db } from "@/lib/db/client";
 import { oauthTokens, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { StatsCards } from "@/components/dashboard/StatsCards";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
+import { WeeklyActivityTracker } from "@/components/dashboard/WeeklyActivityTracker";
+import { ActivityChartCard } from "@/components/dashboard/ActivityChartCard";
+import { LastActivityCard } from "@/components/dashboard/LastActivityCard";
+import { AICoachInsightCard } from "@/components/dashboard/AICoachInsightCard";
+import { ProgressSummaryCard } from "@/components/dashboard/ProgressSummaryCard";
+import { TrainingLoadChart } from "@/components/dashboard/TrainingLoadChart";
 import { ImportBanner } from "@/components/dashboard/ImportBanner";
 import { TelegramConnect } from "@/components/settings/TelegramConnect";
 
@@ -46,10 +51,21 @@ export default async function DashboardPage() {
   const telegramConnected = userRow?.telegramChatId != null;
 
   // Get dashboard data
-  const [stats, recentActivities] = await Promise.all([
+  const [stats, recentActivities, trainingLoad, monthlyStats] = await Promise.all([
     getWeeklyStats(userId),
-    getUserActivities(userId, { limit: 5 }),
+    getUserActivities(userId, { limit: 10 }),
+    getTrainingLoadTrend(userId, 30),
+    getMonthlyStats(userId),
   ]);
+
+  const bounds = calculateRollingBounds(trainingLoad, 28);
+  const trainingLoadData = Object.keys(trainingLoad).sort().map(date => ({
+    date,
+    load: trainingLoad[date] || 0,
+    upper: bounds[date]?.upper || 0,
+    lower: bounds[date]?.lower || 0,
+    avg: bounds[date]?.avg || 0,
+  }));
 
   // Get all activities for the chart (last 4 weeks)
   const allActivities = await getUserActivities(userId, { limit: 100 });
@@ -67,11 +83,23 @@ export default async function DashboardPage() {
 
       {!telegramConnected && <TelegramConnect initialConnected={false} />}
 
+      <WeeklyActivityTracker recentActivities={recentActivities} />
+
       <StatsCards stats={stats} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <WeeklyChart activities={allActivities} />
-        <RecentActivity activities={recentActivities} />
+      <div className="grid gap-8 lg:grid-cols-12">
+        <div className="lg:col-span-8 flex flex-col gap-8">
+          <ActivityChartCard activities={allActivities} />
+        </div>
+        <div className="lg:col-span-4 flex flex-col gap-8">
+          <LastActivityCard activity={recentActivities[0]} />
+          <AICoachInsightCard />
+          <ProgressSummaryCard stats={monthlyStats} />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <TrainingLoadChart data={trainingLoadData} />
       </div>
     </div>
   );

@@ -19,6 +19,10 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }),
   name: varchar("name", { length: 255 }),
   profilePicture: text("profile_picture"),
+  // Telegram integration
+  telegramChatId: bigint("telegram_chat_id", { mode: "number" }),
+  telegramConnectCode: varchar("telegram_connect_code", { length: 32 }),
+  telegramConnectExpiry: timestamp("telegram_connect_expiry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

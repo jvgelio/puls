@@ -6,12 +6,13 @@ import {
   startBackgroundImport,
 } from "@/lib/services/import.service";
 import { db } from "@/lib/db/client";
-import { oauthTokens } from "@/lib/db/schema";
+import { oauthTokens, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
 import { ImportBanner } from "@/components/dashboard/ImportBanner";
+import { TelegramConnect } from "@/components/settings/TelegramConnect";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -36,6 +37,14 @@ export default async function DashboardPage() {
     }
   }
 
+  // Check Telegram connection status
+  const [userRow] = await db
+    .select({ telegramChatId: users.telegramChatId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const telegramConnected = userRow?.telegramChatId != null;
+
   // Get dashboard data
   const [stats, recentActivities] = await Promise.all([
     getWeeklyStats(userId),
@@ -55,6 +64,8 @@ export default async function DashboardPage() {
       </div>
 
       {needsImport && <ImportBanner userId={userId} />}
+
+      {!telegramConnected && <TelegramConnect initialConnected={false} />}
 
       <StatsCards stats={stats} />
 

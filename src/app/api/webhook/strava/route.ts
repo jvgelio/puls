@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { users, oauthTokens } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { processActivity } from "@/lib/services/activity.service";
+import { tasks } from "@trigger.dev/sdk/v3";
+import type { processStravaActivity } from "@/trigger/strava-feedback/process-strava-activity";
 import type { StravaWebhookEvent } from "@/lib/strava/types";
 import { safeCompare } from "@/lib/security";
 
@@ -69,13 +70,15 @@ export async function POST(request: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // Process the activity in background
-    // Respond immediately to Strava (must respond within 2 seconds)
-    processActivity(event.object_id, user.id, token.accessToken).catch(
-      (error) => {
-        console.error("Error processing activity:", error);
-      }
-    );
+    // Trigger background processing via Trigger.dev
+    // This returns quickly (just an HTTP call to Trigger.dev) — well within Strava's 2s limit
+    await tasks.trigger<typeof processStravaActivity>("process-strava-activity", {
+      stravaActivityId: event.object_id,
+      userId: user.id,
+      accessToken: token.accessToken,
+    });
+
+    console.log(`Triggered background processing for activity ${event.object_id}`);
 
     return new NextResponse("OK", { status: 200 });
   } catch (error) {

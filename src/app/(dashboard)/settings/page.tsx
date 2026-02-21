@@ -4,6 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
+import { TelegramConnect } from "@/components/settings/TelegramConnect";
+import { AIModelSettings } from "@/components/settings/AIModelSettings";
+import { db } from "@/lib/db/client";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -11,6 +16,12 @@ export default async function SettingsPage() {
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const [userRow] = await db
+    .select({ telegramChatId: users.telegramChatId, aiModel: users.aiModel })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
 
   return (
     <div className="space-y-8">
@@ -82,6 +93,10 @@ export default async function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        <TelegramConnect initialConnected={userRow?.telegramChatId != null} />
+
+        <AIModelSettings initialModel={userRow?.aiModel ?? null} />
 
         <Card>
           <CardHeader>

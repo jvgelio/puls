@@ -19,6 +19,8 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }),
   name: varchar("name", { length: 255 }),
   profilePicture: text("profile_picture"),
+  // AI preferences
+  aiModel: varchar("ai_model", { length: 100 }),
   // Telegram integration
   telegramChatId: bigint("telegram_chat_id", { mode: "number" }),
   telegramConnectCode: varchar("telegram_connect_code", { length: 32 }),
@@ -109,7 +111,7 @@ export const oauthTokensRelations = relations(oauthTokens, ({ one }) => ({
   }),
 }));
 
-export const activitiesRelations = relations(activities, ({ one, many }) => ({
+export const activitiesRelations = relations(activities, ({ one }) => ({
   user: one(users, {
     fields: [activities.userId],
     references: [users.id],

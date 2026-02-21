@@ -1,9 +1,10 @@
 import { db } from "@/lib/db/client";
-import { activities, aiFeedbacks } from "@/lib/db/schema";
+import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+export const DEFAULT_AI_MODEL = "openrouter/auto";
 
 interface AIFeedbackResponse {
   summary: string;
@@ -12,9 +13,6 @@ interface AIFeedbackResponse {
   recommendations: string[];
 }
 
-/**
- * Get recent activities for context (last 7 days)
- */
 async function getRecentActivities(userId: string, excludeActivityId: string) {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -30,9 +28,6 @@ async function getRecentActivities(userId: string, excludeActivityId: string) {
   });
 }
 
-/**
- * Build the prompt for AI feedback
- */
 function buildFeedbackPrompt(
   activity: typeof activities.$inferSelect,
   recentActivities: (typeof activities.$inferSelect)[]
@@ -41,7 +36,6 @@ function buildFeedbackPrompt(
   const movingTimeSeconds = activity.movingTimeSeconds || 0;
   const pace = formatPace(movingTimeSeconds, distanceKm);
 
-  // Format recent activities summary
   const recentSummary = recentActivities
     .map((a) => {
       const d = parseFloat(a.distanceMeters || "0") / 1000;
@@ -50,7 +44,6 @@ function buildFeedbackPrompt(
     })
     .join("\n");
 
-  // Get splits data from raw payload if available
   const rawPayload = activity.rawPayload as Record<string, unknown> | null;
   const splits = rawPayload?.splits_metric || rawPayload?.splits_standard || [];
   const splitsInfo = Array.isArray(splits) && splits.length > 0
@@ -65,9 +58,7 @@ function buildFeedbackPrompt(
     }).join(", ")}${splits.length > 5 ? "..." : ""}`
     : "";
 
-  return `Você é um treinador de corrida/ciclismo experiente analisando um treino.
-
-DADOS DO TREINO:
+  return `DADOS DO TREINO:
 - Tipo: ${activity.sportType || "Não especificado"}
 - Distância: ${formatDistance(distanceKm)}
 - Tempo em movimento: ${formatDuration(movingTimeSeconds)}
@@ -82,7 +73,7 @@ ${splitsInfo ? `- ${splitsInfo}` : ""}
 
 ${recentSummary ? `HISTÓRICO RECENTE (últimos 7 dias):\n${recentSummary}` : "Primeiro treino registrado."}
 
-Forneça um feedback estruturado em português brasileiro. Responda APENAS com um JSON válido no seguinte formato:
+Responda APENAS com um JSON válido:
 {
   "summary": "Resumo de 1-2 frases sobre o treino",
   "positives": ["Ponto positivo 1", "Ponto positivo 2"],
@@ -93,10 +84,7 @@ Forneça um feedback estruturado em português brasileiro. Responda APENAS com u
 Seja específico e baseie-se nos dados fornecidos. Se algum dado não estiver disponível, não invente valores.`;
 }
 
-/**
- * Call OpenRouter API with auto model selection
- */
-async function callOpenRouter(prompt: string): Promise<{
+async function callOpenRouter(prompt: string, model: string): Promise<{
   content: string;
   model: string;
 }> {
@@ -109,20 +97,21 @@ async function callOpenRouter(prompt: string): Promise<{
       "X-Title": "PULS Training Feedback",
     },
     body: JSON.stringify({
-      model: "openrouter/auto",
+      model,
       messages: [
         {
           role: "system",
           content:
-            "Você é um treinador esportivo experiente especializado em corrida e ciclismo. Forneça feedback construtivo e motivador em português brasileiro. Sempre responda com JSON válido.",
+            "Você é um treinador esportivo experiente. Analise o treino e forneça feedback construtivo e motivador em português brasileiro. Responda sempre com JSON válido.",
         },
         {
           role: "user",
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 1000,
+      temperature: 0.3,
+      max_tokens: 800,
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -134,45 +123,40 @@ async function callOpenRouter(prompt: string): Promise<{
   const data = await response.json();
   return {
     content: data.choices[0].message.content,
-    model: data.model || "openrouter/auto",
+    model: data.model || model,
   };
 }
 
-/**
- * Parse AI response into structured feedback
- */
 function parseAIResponse(content: string): AIFeedbackResponse {
-  // Try to extract JSON from the response
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON found in AI response");
-  }
-
+  // Try direct parse first (works when model returns clean JSON)
   try {
+    const parsed = JSON.parse(content);
+    return {
+      summary: parsed.summary || "",
+      positives: Array.isArray(parsed.positives) ? parsed.positives : [],
+      improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+    };
+  } catch {
+    // Fallback: extract JSON block from markdown or mixed content
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in AI response");
     const parsed = JSON.parse(jsonMatch[0]);
     return {
       summary: parsed.summary || "",
       positives: Array.isArray(parsed.positives) ? parsed.positives : [],
       improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
-      recommendations: Array.isArray(parsed.recommendations)
-        ? parsed.recommendations
-        : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
     };
-  } catch {
-    throw new Error("Failed to parse AI response as JSON");
   }
 }
 
-/**
- * Generate AI feedback for an activity
- */
 export async function generateFeedback(
   activityId: string,
   userId: string
 ): Promise<string> {
   console.log(`Generating feedback for activity ${activityId}`);
 
-  // Get the activity
   const activity = await db.query.activities.findFirst({
     where: eq(activities.id, activityId),
   });
@@ -181,7 +165,6 @@ export async function generateFeedback(
     throw new Error(`Activity not found: ${activityId}`);
   }
 
-  // Check if feedback already exists
   const existingFeedback = await db.query.aiFeedbacks.findFirst({
     where: eq(aiFeedbacks.activityId, activityId),
   });
@@ -191,47 +174,41 @@ export async function generateFeedback(
     return existingFeedback.id;
   }
 
-  // Get recent activities for context
+  // Fetch user's preferred model
+  const [userRow] = await db
+    .select({ aiModel: users.aiModel })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const model = userRow?.aiModel || DEFAULT_AI_MODEL;
+
   const recentActivities = await getRecentActivities(userId, activityId);
-
-  // Build prompt
   const prompt = buildFeedbackPrompt(activity, recentActivities);
-
-  // Call OpenRouter API
-  const { content, model } = await callOpenRouter(prompt);
-
-  // Parse response
+  const { content, model: usedModel } = await callOpenRouter(prompt, model);
   const feedback = parseAIResponse(content);
 
-  // Save feedback to database
   const [inserted] = await db
     .insert(aiFeedbacks)
     .values({
       activityId,
       userId,
-      content: content,
+      content,
       summary: feedback.summary,
       positives: feedback.positives,
       improvements: feedback.improvements,
       recommendations: feedback.recommendations,
-      modelUsed: model,
+      modelUsed: usedModel,
     })
     .returning();
 
-  console.log(`Generated feedback ${inserted.id} for activity ${activityId}`);
+  console.log(`Generated feedback ${inserted.id} using ${usedModel}`);
   return inserted.id;
 }
 
-/**
- * Regenerate feedback for an activity
- */
 export async function regenerateFeedback(
   activityId: string,
   userId: string
 ): Promise<string> {
-  // Delete existing feedback
   await db.delete(aiFeedbacks).where(eq(aiFeedbacks.activityId, activityId));
-
-  // Generate new feedback
   return generateFeedback(activityId, userId);
 }

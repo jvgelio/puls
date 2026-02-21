@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { DEFAULT_AI_MODEL } from "@/lib/services/ai.service";
+import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
 
 export async function GET() {
   const session = await auth();

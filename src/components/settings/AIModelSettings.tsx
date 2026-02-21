@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_AI_MODEL } from "@/lib/services/ai.service";
+import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
 
 const PRESETS = [
   {
@@ -96,11 +96,10 @@ export function AIModelSettings({ initialModel }: AIModelSettingsProps) {
           {PRESETS.map((preset) => (
             <label
               key={preset.id}
-              className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                selected === preset.id
+              className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected === preset.id
                   ? "border-primary bg-primary/5"
                   : "border-border hover:bg-muted/50"
-              }`}
+                }`}
             >
               <input
                 type="radio"
@@ -118,11 +117,10 @@ export function AIModelSettings({ initialModel }: AIModelSettingsProps) {
           ))}
 
           <label
-            className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-              selected === "custom"
+            className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected === "custom"
                 ? "border-primary bg-primary/5"
                 : "border-border hover:bg-muted/50"
-            }`}
+              }`}
           >
             <input
               type="radio"

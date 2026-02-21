@@ -2,9 +2,9 @@ import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { eq, desc, and, gte, ne } from "drizzle-orm";
 import { formatDistance, formatDuration, formatPace } from "@/lib/utils/formatters";
+import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-export const DEFAULT_AI_MODEL = "openrouter/auto";
 
 interface AIFeedbackResponse {
   summary: string;

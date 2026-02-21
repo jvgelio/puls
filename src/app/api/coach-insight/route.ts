@@ -70,6 +70,8 @@ Dê uma análise breve (máx 2 frases) e uma recomendação concreta. Responda a
             headers: {
                 Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
+                "HTTP-Referer": process.env.NEXTAUTH_URL || "http://localhost:3000",
+                "X-Title": "Puls",
             },
             body: JSON.stringify({
                 model,
@@ -80,7 +82,9 @@ Dê uma análise breve (máx 2 frases) e uma recomendação concreta. Responda a
         });
 
         if (!response.ok) {
-            throw new Error(`OpenRouter API error: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`OpenRouter API error ${response.status}:`, errorText);
+            throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
@@ -99,6 +103,6 @@ Dê uma análise breve (máx 2 frases) e uma recomendação concreta. Responda a
         return NextResponse.json({ insight });
     } catch (error) {
         console.error("Coach Insight generation failed:", error);
-        return NextResponse.json({ error: "Failed to generate insight" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to generate insight: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
     }
 }

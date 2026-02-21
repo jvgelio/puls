@@ -28,9 +28,17 @@ export function AICoachInsightCard() {
                     fetchInsight(true);
                     return;
                 }
+            } else {
+                if (forceGenerate) {
+                    console.error("Coach Insight Error: API returned", res.status);
+                    setInsight("Indisponível no momento. Tente novamente mais tarde.");
+                }
             }
         } catch (error) {
             console.error("Failed to load coach insight", error);
+            if (forceGenerate) {
+                setInsight("Erro ao contactar a IA. Verifique sua conexão.");
+            }
         } finally {
             setLoading(false);
         }

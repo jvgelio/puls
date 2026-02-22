@@ -1,11 +1,22 @@
 {
   "mcpServers": {
     "trigger": {
+      "command": "cmd",
       "args": [
+        "/c",
+        "npx",
         "trigger.dev@4.4.0",
         "mcp"
-      ],
-      "command": "npx"
+      ]
+    },
+    "railway": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@railway/mcp-server"
+      ]
     }
   }
 }

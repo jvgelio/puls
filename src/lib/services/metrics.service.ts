@@ -169,6 +169,15 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
   const allActivities = await db.query.activities.findMany({
     where: eq(activities.userId, userId),
     orderBy: [desc(activities.startDate)],
+    columns: {
+      id: true,
+      startDate: true,
+      movingTimeSeconds: true,
+      distanceMeters: true,
+      averageHeartrate: true,
+      totalElevationGain: true,
+      streamsPayload: true,
+    }
   });
 
   // Group by day
@@ -178,7 +187,15 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
     if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
 
     const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
-    const load = calculateSimpleLoad(activity);
+
+    // First try to calculate an authentic TRIMP based on real heartrate zones
+    let load = calculateTRIMP(activity);
+
+    // If streams are unavailable, fallback to simple estimation
+    if (load === null) {
+      //@ts-ignore - internal loose type
+      load = calculateSimpleLoad(activity);
+    }
 
     dailyLoad[dateKey] = (dailyLoad[dateKey] || 0) + load;
   }
@@ -193,13 +210,49 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
 }
 
 /**
- * Calculate a simple training load score
+ * Calculate authentic TRIMP (Training Impulse) using Banister's formula and real HR streams
+ * TRIMP = duration(min) * HRR * 0.64 * e^(1.92 * HRR)
+ */
+export function calculateTRIMP(activity: any): number | null {
+  const streams = activity.streamsPayload as { type: string; data: any[] }[] | null;
+  if (!streams || !Array.isArray(streams)) return null;
+
+  const hrStream = streams.find(s => s.type === 'heartrate' && Array.isArray(s.data));
+  const timeStream = streams.find(s => s.type === 'time' && Array.isArray(s.data));
+
+  if (!hrStream || !timeStream || hrStream.data.length === 0 || hrStream.data.length !== timeStream.data.length) {
+    return null;
+  }
+
+  // Static HR zones for now (Future: pull from user settings)
+  const hrRest = 60;
+  const hrMax = 190;
+
+  let totalTrimp = 0;
+
+  for (let i = 1; i < hrStream.data.length; i++) {
+    const hr = hrStream.data[i];
+    const dt = timeStream.data[i] - timeStream.data[i - 1]; // duration in seconds
+
+    // Process only if HR is above rest and gaps between points are reasonable (< 5 mins)
+    if (hr > hrRest && dt > 0 && dt < 300) {
+      const hrReserve = (hr - hrRest) / (hrMax - hrRest);
+      const durationMin = dt / 60;
+
+      const trimp = durationMin * hrReserve * 0.64 * Math.exp(1.92 * hrReserve);
+      totalTrimp += trimp;
+    }
+  }
+
+  return totalTrimp > 0 ? Math.round(totalTrimp) : null;
+}
+
+/**
+ * Calculate a simple training load score as fallback
  */
 export function calculateSimpleLoad(activity: Activity): number {
   let seconds = activity.movingTimeSeconds || 0;
   if (seconds > 500000) {
-    // Likely in milliseconds by mistake (500000 ms ~ 8 mins, 500000 sec is 138 hours)
-    // If it's over 138 hours, it's definitely milliseconds.
     seconds = seconds / 1000;
   }
   const duration = seconds / 3600; // hours
@@ -209,13 +262,12 @@ export function calculateSimpleLoad(activity: Activity): number {
     elevation = elevation / 100; // just in case elevation is cm
   }
 
-  // Simple formula: duration * intensity factor
+  // To keep simple load functionally parity with TRIMP, we scale it slightly to match new TRIMP expectations (closer to 100 TSS/hr)
   const intensityFactor = activity.averageHeartrate
     ? parseFloat(activity.averageHeartrate) / 140
     : 1;
 
-  // Cap the load to a reasonable max per day to avoid math explosion (max 500 per activity)
-  let load = Math.round(duration * intensityFactor * 50 + elevation * 0.1);
+  let load = Math.round(duration * intensityFactor * 80 + elevation * 0.1);
   return Math.min(Math.max(load, 0), 500);
 }
 
@@ -293,4 +345,51 @@ export function calculateFitnessFatigue(
   }
 
   return result;
+}
+
+/**
+ * Get daily load and count for heatmap (e.g. 180 days)
+ */
+export async function getHeatmapData(userId: string, days: number = 180) {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const allActivities = await db.query.activities.findMany({
+    where: eq(activities.userId, userId),
+    orderBy: [desc(activities.startDate)],
+    columns: {
+      id: true,
+      startDate: true,
+      movingTimeSeconds: true,
+      distanceMeters: true,
+      averageHeartrate: true,
+      totalElevationGain: true,
+      streamsPayload: true,
+    }
+  });
+
+  const dailyStats: Record<string, { date: Date, load: number, count: number }> = {};
+
+  for (const activity of allActivities) {
+    if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
+
+    const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
+
+    let load = calculateTRIMP(activity);
+    if (load === null) {
+      //@ts-ignore
+      load = calculateSimpleLoad(activity);
+    }
+
+    if (!dailyStats[dateKey]) {
+      const dateNoTime = new Date(activity.startDate);
+      dateNoTime.setHours(0, 0, 0, 0);
+      dailyStats[dateKey] = { date: dateNoTime, load: 0, count: 0 };
+    }
+
+    dailyStats[dateKey].load += load;
+    dailyStats[dateKey].count += 1;
+  }
+
+  return Object.values(dailyStats).sort((a, b) => a.date.getTime() - b.date.getTime());
 }

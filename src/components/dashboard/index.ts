@@ -1,6 +1,16 @@
+export { ActivityChartCard } from "./ActivityChartCard";
+export { ActivityCharts } from "./ActivityCharts";
+export { ActivityMap } from "./ActivityMap";
+export { AICoachInsightCard } from "./AICoachInsightCard";
 export { DashboardNav } from "./DashboardNav";
+export { FitnessChartCard } from "./FitnessChartCard";
 export { ImportBanner } from "./ImportBanner";
+export { LastActivityCard } from "./LastActivityCard";
+export { default as MapClient } from "./MapClient";
+export { ProgressSummaryCard } from "./ProgressSummaryCard";
 export { RecentActivity } from "./RecentActivity";
 export { SignOutButton } from "./SignOutButton";
 export { StatsCards } from "./StatsCards";
+export { TrainingLoadChart } from "./TrainingLoadChart";
+export { WeeklyActivityTracker } from "./WeeklyActivityTracker";
 export { WeeklyChart } from "./WeeklyChart";

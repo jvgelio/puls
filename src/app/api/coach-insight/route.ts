@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getTrainingLoadTrend, calculateFitnessFatigue, calculateSimpleLoad } from "@/lib/services/metrics.service";
+import { getTrainingLoadTrend, calculateFitnessFatigue, calculateSimpleLoad, calculateTRIMP } from "@/lib/services/metrics.service";
 import { getUserActivities } from "@/lib/services/activity.service";
 import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
 import { format } from "date-fns";
@@ -76,8 +76,13 @@ export async function POST(req: Request) {
         const date = a.startDate ? format(new Date(a.startDate), "dd/MM", { locale: ptBR }) : "??";
         const dist = a.distanceMeters ? (parseFloat(a.distanceMeters) / 1000).toFixed(1) + "km" : "";
         const time = a.movingTimeSeconds ? Math.round(a.movingTimeSeconds / 60) + "min" : "";
-        //@ts-ignore - internal usage
-        const load = calculateSimpleLoad(a);
+
+        let load = calculateTRIMP(a);
+        if (load === null) {
+            //@ts-ignore
+            load = calculateSimpleLoad(a);
+        }
+
         return `- ${date}: ${a.sportType} (${a.name}), ${dist} ${time}, Carga: ${load}`;
     }).join("\n");
 

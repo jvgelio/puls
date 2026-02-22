@@ -95,7 +95,7 @@ export function LastActivityCard({ activity }: LastActivityCardProps) {
                 )}
 
                 <Link
-                    href={`/activities/${activity.id}`}
+                    href={`/dashboard/activity/${activity.id}`}
                     className="mt-auto group flex items-center justify-between w-full text-sm font-medium text-primary pt-2 border-t"
                 >
                     Ver detalhes da atividade

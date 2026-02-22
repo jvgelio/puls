@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getWeeklyStats, getUserActivities, getMonthlyStats } from "@/lib/services/activity.service";
-import { getTrainingLoadTrend, calculateFitnessFatigue } from "@/lib/services/metrics.service";
+import { getTrainingLoadTrend, calculateFitnessFatigue, getHeatmapData, getPersonalRecords } from "@/lib/services/metrics.service";
 import {
   needsHistoricalImport,
   startBackgroundImport,
@@ -17,6 +17,8 @@ import { ProgressSummaryCard } from "@/components/dashboard/ProgressSummaryCard"
 import { TrainingLoadChart } from "@/components/dashboard/TrainingLoadChart";
 import { ImportBanner } from "@/components/dashboard/ImportBanner";
 import { TelegramConnect } from "@/components/settings/TelegramConnect";
+import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
+import { PersonalRecordsCard } from "@/components/dashboard/PersonalRecordsCard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -50,11 +52,13 @@ export default async function DashboardPage() {
   const telegramConnected = userRow?.telegramChatId != null;
 
   // Get dashboard data
-  const [stats, recentActivities, trainingLoad, monthlyStats] = await Promise.all([
+  const [stats, recentActivities, trainingLoad, monthlyStats, heatmapData, personalRecords] = await Promise.all([
     getWeeklyStats(userId),
     getUserActivities(userId, { limit: 10 }),
     getTrainingLoadTrend(userId, 90), // 90 days to warm up EWMA
     getMonthlyStats(userId),
+    getHeatmapData(userId, 180), // 180 days for heatmap
+    getPersonalRecords(userId),
   ]);
 
   const fitnessFatigueDataArray = calculateFitnessFatigue(trainingLoad);
@@ -99,6 +103,15 @@ export default async function DashboardPage() {
       {!telegramConnected && <TelegramConnect initialConnected={false} />}
 
       <StatsCards stats={stats} />
+
+      <div className="grid gap-8 mb-8 md:grid-cols-7">
+        <div className="col-span-full xl:col-span-5">
+          <ActivityHeatmap activities={heatmapData} days={180} />
+        </div>
+        <div className="col-span-full xl:col-span-2">
+          <PersonalRecordsCard records={personalRecords} />
+        </div>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-8">

@@ -1,10 +1,8 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import { db } from "./db/client";
-import { users, oauthTokens } from "./db/schema";
-import { eq } from "drizzle-orm";
 import { refreshAccessToken } from "./strava/auth";
+import { getUserByStravaId, createUser, updateUser, upsertOAuthToken } from "./services/user.service";
 
 // Extended types
 interface ExtendedJWT extends JWT {
@@ -88,63 +86,33 @@ export const authConfig: NextAuthConfig = {
       console.log("[PULS-AUTH] Processing sign in");
 
       // Find or create user
-      let dbUser = await db.query.users.findFirst({
-        where: eq(users.stravaId, stravaId),
-      });
+      let dbUser = await getUserByStravaId(stravaId);
 
       if (!dbUser) {
         console.log("[PULS-AUTH] Creating NEW user");
-        const [newUser] = await db
-          .insert(users)
-          .values({
-            stravaId,
-            name: user.name,
-            email: user.email,
-            profilePicture: user.image,
-          })
-          .returning();
-        dbUser = newUser;
+        dbUser = await createUser({
+          stravaId,
+          name: user.name,
+          email: user.email,
+          profilePicture: user.image,
+        });
       } else {
         console.log("[PULS-AUTH] Found EXISTING user. Updating info...");
-        // Update user info
-        await db
-          .update(users)
-          .set({
-            name: user.name,
-            email: user.email,
-            profilePicture: user.image,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.id, dbUser.id));
+        await updateUser(dbUser.id, {
+          name: user.name,
+          email: user.email,
+          profilePicture: user.image,
+        });
       }
 
       // Upsert OAuth tokens
-      const existingToken = await db.query.oauthTokens.findFirst({
-        where: eq(oauthTokens.userId, dbUser.id),
+      console.log("[PULS-AUTH] Upserting OAuth tokens");
+      await upsertOAuthToken(dbUser.id, {
+        accessToken: account.access_token!,
+        refreshToken: account.refresh_token!,
+        expiresAt,
+        scope: account.scope,
       });
-
-      if (existingToken) {
-        console.log("[PULS-AUTH] Updating OAuth tokens");
-        await db
-          .update(oauthTokens)
-          .set({
-            accessToken: account.access_token!,
-            refreshToken: account.refresh_token!,
-            expiresAt,
-            scope: account.scope,
-            updatedAt: new Date(),
-          })
-          .where(eq(oauthTokens.id, existingToken.id));
-      } else {
-        console.log("[PULS-AUTH] Inserting NEW OAuth tokens");
-        await db.insert(oauthTokens).values({
-          userId: dbUser.id,
-          accessToken: account.access_token!,
-          refreshToken: account.refresh_token!,
-          expiresAt,
-          scope: account.scope,
-        });
-      }
 
       return true;
     },
@@ -159,9 +127,7 @@ export const authConfig: NextAuthConfig = {
         console.log("[PULS-AUTH] JWT Callback");
 
         if (stravaId) {
-          const dbUser = await db.query.users.findFirst({
-            where: eq(users.stravaId, stravaId),
-          });
+          const dbUser = await getUserByStravaId(stravaId);
 
           if (!dbUser) {
             console.error("[PULS-AUTH] CRITICAL: User not found in JWT callback");
@@ -192,20 +158,14 @@ export const authConfig: NextAuthConfig = {
           const refreshed = await refreshAccessToken(extToken.refreshToken);
 
           // Update tokens in database
-          const dbUser = await db.query.users.findFirst({
-            where: eq(users.stravaId, extToken.stravaId),
-          });
+          const dbUser = await getUserByStravaId(extToken.stravaId);
 
           if (dbUser) {
-            await db
-              .update(oauthTokens)
-              .set({
-                accessToken: refreshed.access_token,
-                refreshToken: refreshed.refresh_token,
-                expiresAt: new Date(refreshed.expires_at * 1000),
-                updatedAt: new Date(),
-              })
-              .where(eq(oauthTokens.userId, dbUser.id));
+            await upsertOAuthToken(dbUser.id, {
+              accessToken: refreshed.access_token,
+              refreshToken: refreshed.refresh_token,
+              expiresAt: new Date(refreshed.expires_at * 1000),
+            });
           }
 
           return {

@@ -5,13 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, Activity as ActivityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function AICoachInsightCard() {
-    const [insight, setInsight] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+interface AICoachInsightCardProps {
+    insight?: string | null;
+}
+
+export function AICoachInsightCard({ insight: propInsight }: AICoachInsightCardProps) {
+    const [insight, setInsight] = useState<string | null>(propInsight ?? null);
+    const [loading, setLoading] = useState(propInsight === undefined);
 
     useEffect(() => {
-        fetchInsight();
-    }, []);
+        if (propInsight === undefined) {
+            fetchInsight();
+        }
+    }, [propInsight]);
 
     const fetchInsight = async (forceGenerate = false) => {
         try {

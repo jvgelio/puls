@@ -4,6 +4,7 @@ import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { createStravaClient } from "@/lib/strava/api";
 import { generateFeedback } from "./ai.service";
 import { eq, and, gte } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import type { StravaActivity, StravaStreamsResponse, StravaLap } from "@/lib/strava/types";
 
 interface ActivityData {
@@ -86,6 +87,12 @@ async function saveActivity(
       })
       .where(eq(activities.id, existing.id));
 
+    try {
+      // @ts-expect-error Next.js 15 typings bug with cache profile
+      revalidateTag(`user-${userId}-activities`);
+    } catch (e) {
+      console.log("Could not revalidate tag during background sync", e);
+    }
     return existing.id;
   }
 
@@ -99,6 +106,12 @@ async function saveActivity(
     })
     .returning();
 
+  try {
+    // @ts-expect-error Next.js 15 typings bug with cache profile
+    revalidateTag(`user-${userId}-activities`);
+  } catch (e) {
+    console.log("Could not revalidate tag during background sync", e);
+  }
   return inserted.id;
 }
 

@@ -12,14 +12,23 @@ import {
     ResponsiveContainer,
     Cell,
 } from "recharts";
+import { ChartCard } from "@/components/patterns";
 import type { Activity } from "@/lib/db/schema";
 import { formatDistance, formatDuration } from "@/lib/utils/formatters";
 
 interface ActivityChartCardProps {
-    activities: Activity[];
+    activities?: Activity[];
+    title?: string;
+    description?: string;
+    children?: React.ReactNode;
 }
 
-export function ActivityChartCard({ activities }: ActivityChartCardProps) {
+export function ActivityChartCard({
+    activities = [],
+    title = "Volume de Treino (8 semanas)",
+    description,
+    children
+}: ActivityChartCardProps) {
     const weeks = useMemo(() => {
         const now = new Date();
         const weeksData: { name: string; distance: number; time: number; rawDistance: number }[] = [];
@@ -71,15 +80,13 @@ export function ActivityChartCard({ activities }: ActivityChartCardProps) {
     const trendString = `${isPositive ? "↑ +" : "↓ "}${trendPercent.toFixed(1)}% vs semana passada`;
 
     return (
-        <Card className="flex flex-col col-span-1 lg:col-span-3">
-            <CardHeader>
-                <CardTitle>Volume de Treino (8 semanas)</CardTitle>
-                <CardDescription className={`font-medium ${isPositive ? "text-green-600" : "text-amber-600"}`}>
-                    {trendString}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1">
-                <div className="h-[250px] w-full">
+        <ChartCard
+            title={title}
+            description={description || trendString}
+            className="col-span-1 lg:col-span-3"
+        >
+            <div className="h-[250px] w-full">
+                {children || (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={weeks} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
@@ -113,8 +120,8 @@ export function ActivityChartCard({ activities }: ActivityChartCardProps) {
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
-            </CardContent>
-        </Card>
+                )}
+            </div>
+        </ChartCard>
     );
 }

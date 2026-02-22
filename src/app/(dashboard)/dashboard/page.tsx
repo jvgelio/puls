@@ -8,9 +8,7 @@ import {
   needsHistoricalImport,
   startBackgroundImport,
 } from "@/lib/services/import.service";
-import { db } from "@/lib/db/client";
-import { oauthTokens, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getOAuthTokenByUserId, isTelegramConnected } from "@/lib/services/user.service";
 
 import { HeroStatusCard } from "@/components/dashboard/HeroStatusCard";
 import { FitnessChartCard } from "@/components/dashboard/FitnessChartCard";
@@ -91,9 +89,7 @@ async function TopBanners({ userId }: { userId: string }) {
 
   if (needsImport) {
     // Get user's access token and start import
-    const token = await db.query.oauthTokens.findFirst({
-      where: eq(oauthTokens.userId, userId),
-    });
+    const token = await getOAuthTokenByUserId(userId);
 
     if (token) {
       startBackgroundImport(userId, token.accessToken);
@@ -101,12 +97,7 @@ async function TopBanners({ userId }: { userId: string }) {
   }
 
   // Check Telegram connection status
-  const [userRow] = await db
-    .select({ telegramChatId: users.telegramChatId })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const telegramConnected = userRow?.telegramChatId != null;
+  const telegramConnected = await isTelegramConnected(userId);
 
   return (
     <>

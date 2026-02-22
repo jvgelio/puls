@@ -5,12 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { format, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+import { ChartCard } from "@/components/patterns";
+
 interface HeatmapProps {
-    activities: { date: Date; load: number; count: number }[];
+    activities: { date: Date | string; load: number; count: number }[];
     days?: number;
+    title?: string;
+    description?: string;
 }
 
-export function ActivityHeatmap({ activities, days = 90 }: HeatmapProps) {
+export function ActivityHeatmap({
+    activities,
+    days = 90,
+    title = "Consistência",
+    description
+}: HeatmapProps) {
     const { grid, maxLoad } = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -28,8 +37,10 @@ export function ActivityHeatmap({ activities, days = 90 }: HeatmapProps) {
         let maxLoadValue = 0;
 
         activities.forEach(act => {
-            const dateStr = act.date.toISOString().split("T")[0];
-            activityMap.set(dateStr, act);
+            const dateObj = act.date instanceof Date ? act.date : new Date(act.date);
+            const dateStr = dateObj.toISOString().split("T")[0];
+            // Normalize act to ensure date is a Date object
+            activityMap.set(dateStr, { ...act, date: dateObj });
             if (act.load > maxLoadValue) maxLoadValue = act.load;
         });
 
@@ -97,80 +108,77 @@ export function ActivityHeatmap({ activities, days = 90 }: HeatmapProps) {
     }, [grid]);
 
     return (
-        <Card className="flex flex-col h-full overflow-hidden">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle className="text-lg font-bold">Consistência</CardTitle>
-                    <CardDescription>Últimos {days} dias de atividade</CardDescription>
+        <ChartCard
+            title={title}
+            description={description || `Últimos ${days} dias de atividade`}
+            className="flex flex-col h-full overflow-hidden"
+            contentClassName="flex-1 flex flex-col justify-center pb-4 pt-2 overflow-hidden"
+        >
+            {!mounted ? (
+                <div className="flex h-[115px] items-center justify-center">
+                    <span className="text-xs text-muted-foreground animate-pulse">Carregando mapa de calor...</span>
                 </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center pb-4 pt-2 overflow-hidden">
-                {!mounted ? (
-                    <div className="flex h-[115px] items-center justify-center">
-                        <span className="text-xs text-muted-foreground animate-pulse">Carregando mapa de calor...</span>
-                    </div>
-                ) : (
-                    <>
-                        <div className="w-full">
-                            <div className="flex text-xs text-muted-foreground mb-2 ml-[30px]">
-                                {months.map((m, i) => (
-                                    <div key={i} style={{ width: `${m.colSpan * 14}px`, minWidth: `${m.colSpan * 14}px` }} className="capitalize text-left">
-                                        {m.label}
+            ) : (
+                <>
+                    <div className="w-full">
+                        <div className="flex text-xs text-muted-foreground mb-2 ml-[30px]">
+                            {months.map((m, i) => (
+                                <div key={i} style={{ width: `${m.colSpan * 14}px`, minWidth: `${m.colSpan * 14}px` }} className="capitalize text-left">
+                                    {m.label}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-1 h-[105px]">
+                            <div className="grid grid-rows-7 gap-1 text-[9px] text-muted-foreground pr-1 w-7 items-center">
+                                <span>Dom</span>
+                                <span className="opacity-0">Seg</span>
+                                <span>Ter</span>
+                                <span className="opacity-0">Qua</span>
+                                <span>Qui</span>
+                                <span className="opacity-0">Sex</span>
+                                <span>Sáb</span>
+                            </div>
+
+                            <div className="flex gap-1">
+                                {grid.map((week, weekIdx) => (
+                                    <div key={weekIdx} className="grid grid-rows-7 gap-1">
+                                        {week.map((day, dayIdx) => (
+                                            <div
+                                                key={dayIdx}
+                                                className={`w-[10px] h-[10px] md:w-[11px] md:h-[11px] rounded-[1.5px] ${getColor(day.load)} transition-colors hover:ring-1 hover:ring-primary/50 relative group cursor-pointer`}
+                                            >
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 p-2 hidden group-hover:block z-50 pointer-events-none">
+                                                    <div className="bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow-md border whitespace-nowrap">
+                                                        <span className="font-semibold block">{format(day.date, "dd MMM yyyy", { locale: ptBR })}</span>
+                                                        {day.count > 0 ? (
+                                                            <span>{day.count} treino(s) • Carga: <span className="font-mono text-emerald-500">{Math.round(day.load)}</span></span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground">Descanso</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ))}
                             </div>
-
-                            <div className="flex gap-1 h-[105px]">
-                                <div className="grid grid-rows-7 gap-1 text-[9px] text-muted-foreground pr-1 w-7 items-center">
-                                    <span>Dom</span>
-                                    <span className="opacity-0">Seg</span>
-                                    <span>Ter</span>
-                                    <span className="opacity-0">Qua</span>
-                                    <span>Qui</span>
-                                    <span className="opacity-0">Sex</span>
-                                    <span>Sáb</span>
-                                </div>
-
-                                <div className="flex gap-1">
-                                    {grid.map((week, weekIdx) => (
-                                        <div key={weekIdx} className="grid grid-rows-7 gap-1">
-                                            {week.map((day, dayIdx) => (
-                                                <div
-                                                    key={dayIdx}
-                                                    className={`w-[10px] h-[10px] md:w-[11px] md:h-[11px] rounded-[1.5px] ${getColor(day.load)} transition-colors hover:ring-1 hover:ring-primary/50 relative group cursor-pointer`}
-                                                >
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 p-2 hidden group-hover:block z-50 pointer-events-none">
-                                                        <div className="bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow-md border whitespace-nowrap">
-                                                            <span className="font-semibold block">{format(day.date, "dd MMM yyyy", { locale: ptBR })}</span>
-                                                            {day.count > 0 ? (
-                                                                <span>{day.count} treino(s) • Carga: <span className="font-mono text-emerald-500">{Math.round(day.load)}</span></span>
-                                                            ) : (
-                                                                <span className="text-muted-foreground">Descanso</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
+                    </div>
 
-                        <div className="mt-4 flex items-center justify-end text-xs text-muted-foreground gap-1.5 w-full">
-                            <span>Menos</span>
-                            <div className="flex gap-1">
-                                <div className="w-3 h-3 rounded-[2px] bg-muted/30"></div>
-                                <div className="w-3 h-3 rounded-[2px] bg-emerald-200 dark:bg-emerald-900/40"></div>
-                                <div className="w-3 h-3 rounded-[2px] bg-emerald-400 dark:bg-emerald-700/60"></div>
-                                <div className="w-3 h-3 rounded-[2px] bg-emerald-500 dark:bg-emerald-600/80"></div>
-                                <div className="w-3 h-3 rounded-[2px] bg-emerald-600 dark:bg-emerald-500"></div>
-                            </div>
-                            <span>Mais</span>
+                    <div className="mt-4 flex items-center justify-end text-xs text-muted-foreground gap-1.5 w-full">
+                        <span>Menos</span>
+                        <div className="flex gap-1">
+                            <div className="w-3 h-3 rounded-[2px] bg-muted/30"></div>
+                            <div className="w-3 h-3 rounded-[2px] bg-emerald-200 dark:bg-emerald-900/40"></div>
+                            <div className="w-3 h-3 rounded-[2px] bg-emerald-400 dark:bg-emerald-700/60"></div>
+                            <div className="w-3 h-3 rounded-[2px] bg-emerald-500 dark:bg-emerald-600/80"></div>
+                            <div className="w-3 h-3 rounded-[2px] bg-emerald-600 dark:bg-emerald-500"></div>
                         </div>
-                    </>
-                )}
-            </CardContent>
-        </Card>
+                        <span>Mais</span>
+                    </div>
+                </>
+            )}
+        </ChartCard>
     );
 }

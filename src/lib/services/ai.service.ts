@@ -84,10 +84,12 @@ Responda APENAS com um JSON válido:
 Seja específico e baseie-se nos dados fornecidos. Se algum dado não estiver disponível, não invente valores.`;
 }
 
-async function callOpenRouter(prompt: string, model: string): Promise<{
+async function callOpenRouter(prompt: string, model: string, options: { asJson?: boolean; systemMessage?: string } = {}): Promise<{
   content: string;
   model: string;
 }> {
+  const asJson = options.asJson ?? true;
+  const sysMsg = options.systemMessage ?? "Você é um treinador esportivo experiente. Analise o treino e forneça feedback construtivo e motivador em português brasileiro. Responda sempre com JSON válido.";
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
     headers: {
@@ -101,8 +103,7 @@ async function callOpenRouter(prompt: string, model: string): Promise<{
       messages: [
         {
           role: "system",
-          content:
-            "Você é um treinador esportivo experiente. Analise o treino e forneça feedback construtivo e motivador em português brasileiro. Responda sempre com JSON válido.",
+          content: sysMsg,
         },
         {
           role: "user",
@@ -111,7 +112,7 @@ async function callOpenRouter(prompt: string, model: string): Promise<{
       ],
       temperature: 0.3,
       max_tokens: 800,
-      response_format: { type: "json_object" },
+      ...(asJson ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
@@ -217,4 +218,46 @@ export async function regenerateFeedback(
 ): Promise<string> {
   await db.delete(aiFeedbacks).where(eq(aiFeedbacks.activityId, activityId));
   return generateFeedback(activityId, userId);
+}
+
+export async function generateBotResponse(userId: string, userMessage: string): Promise<string> {
+  const [userRow] = await db
+    .select({ aiModel: users.aiModel, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!userRow) throw new Error("User not found");
+
+  let model = userRow.aiModel || DEFAULT_AI_MODEL;
+  const knownInvalid = ["google/gemini-2.5-flash-preview", "google/gemini-2.5-flash-lite", "openai/gpt-5-mini", "openai/gpt-5-nano", "anthropic/claude-haiku-4.5"];
+  if (knownInvalid.includes(model)) model = DEFAULT_AI_MODEL;
+
+  // Use dummy string to avoid matching an activity, effectively getting the `limit: 5` most recent
+  const recentActivities = await getRecentActivities(userId, "000");
+
+  const recentSummary = recentActivities
+    .map((a) => {
+      const d = parseFloat(a.distanceMeters || "0") / 1000;
+      const t = a.movingTimeSeconds || 0;
+      return `- ${a.startDate?.toISOString().split('T')[0] || ""} | ${a.sportType}: ${formatDistance(d)}, ${formatDuration(t)}`;
+    })
+    .join("\n");
+
+  const prompt = `O atleta ${userRow.name || "usuário"} enviou a seguinte mensagem no chat: "${userMessage}".
+  
+Aqui estão os treinos mais recentes dele (últimos 7 dias):
+${recentSummary || "Nenhum treino recente."}
+
+Responda à mensagem dele como um treinador pessoal e AI Coach (seu nome é PULS Advisor). 
+Seja amigável, direto, curto (máx 2 parágrafos) e fale em português do Brasil. 
+Você tem acesso aos dados recentes dele. Responda em texto simples formatado para o Telegram (use Markdown com asteriscos simples * para negrito, não use asteriscos duplos **. Pode usar emojis). 
+NÃO USE JSON. APENAS TEXTO.`;
+
+  const { content } = await callOpenRouter(prompt, model, {
+    asJson: false,
+    systemMessage: "Você é um treinador esportivo AI (PULS Advisor). Responda diretamente e de forma amigável e concisa."
+  });
+
+  return content;
 }

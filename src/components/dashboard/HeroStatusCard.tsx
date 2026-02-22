@@ -48,27 +48,34 @@ export function HeroStatusCard({ tsb }: HeroStatusCardProps) {
 
     const roundedTsb = Math.round(tsb);
 
-    // Determine Zone
+    // Determine Zone using semantic tokens
     let zoneName = "Zona Cinza";
-    let zoneColor = "bg-gray-500";
-    let textColor = "text-gray-500";
-    let lightBgColor = "bg-gray-500/10";
-    let borderColor = "border-gray-500/20";
+    let zoneVar = "zone-neutral";
 
     if (roundedTsb > 20) {
-        zoneName = "Transição"; zoneColor = "bg-orange-500"; textColor = "text-orange-500"; lightBgColor = "bg-orange-500/10"; borderColor = "border-orange-500/20";
+        zoneName = "Transição";
+        zoneVar = "zone-transition";
     } else if (roundedTsb > 5) {
-        zoneName = "Descansado"; zoneColor = "bg-cyan-500"; textColor = "text-cyan-500"; lightBgColor = "bg-cyan-500/10"; borderColor = "border-cyan-500/20";
+        zoneName = "Descansado";
+        zoneVar = "zone-fresh";
     } else if (roundedTsb >= -10) {
-        zoneName = "Zona Cinza"; zoneColor = "bg-gray-500"; textColor = "text-gray-500"; lightBgColor = "bg-gray-500/10"; borderColor = "border-gray-500/20";
+        zoneName = "Zona Cinza";
+        zoneVar = "zone-neutral";
     } else if (roundedTsb >= -30) {
-        zoneName = "Treino Ótimo"; zoneColor = "bg-green-500"; textColor = "text-green-500"; lightBgColor = "bg-green-500/10"; borderColor = "border-green-500/20";
+        zoneName = "Treino Ótimo";
+        zoneVar = "zone-optimal";
     } else {
-        zoneName = "Alto Risco"; zoneColor = "bg-red-500"; textColor = "text-red-500"; lightBgColor = "bg-red-500/10"; borderColor = "border-red-500/20";
+        zoneName = "Alto Risco";
+        zoneVar = "zone-risk";
     }
 
+    const zoneColor = `var(--${zoneVar})`;
+    const lightBgColor = `oklch(from var(--${zoneVar}) l c h / 0.1)`;
+    const borderColor = `oklch(from var(--${zoneVar}) l c h / 0.2)`;
+    const textColor = `var(--${zoneVar})`;
+
     return (
-        <Card className={`overflow-hidden border-t-4 h-full ${borderColor}`} style={{ borderTopColor: `var(--${textColor.split('-')[1]}-500)` }}>
+        <Card className="overflow-hidden border-t-4 h-full" style={{ borderTopColor: zoneColor, borderColor: borderColor }}>
             <CardHeader className="pb-1 pt-4 flex flex-row items-center justify-between space-y-0 relative z-10 bg-card">
                 <div className="flex items-center gap-1.5">
                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Status do Dia</CardTitle>
@@ -97,25 +104,25 @@ export function HeroStatusCard({ tsb }: HeroStatusCardProps) {
                     <div className="col-span-1 lg:col-span-4 space-y-4">
                         <div>
                             <div className="flex items-baseline gap-2 mb-2">
-                                <span className={`text-5xl font-black tracking-tighter ${textColor}`}>
+                                <span className="text-5xl font-black tracking-tighter" style={{ color: textColor }}>
                                     {roundedTsb > 0 ? "+" : ""}{roundedTsb}
                                 </span>
                             </div>
-                            <Badge variant="outline" className={`${textColor} ${lightBgColor} ${borderColor} font-bold text-sm px-3 py-1 shadow-sm`}>
+                            <Badge variant="outline" className="font-bold text-sm px-3 py-1 shadow-sm" style={{ color: textColor, backgroundColor: lightBgColor, borderColor: borderColor }}>
                                 {zoneName}
                             </Badge>
                         </div>
                     </div>
 
                     {/* AI Coach Insight */}
-                    <div className={`col-span-1 lg:col-span-8 rounded-xl p-5 relative overflow-hidden ${lightBgColor} ${borderColor} border shadow-sm`}>
-                        <div className={`absolute top-0 right-0 p-4 opacity-5 pointer-events-none ${textColor}`}>
+                    <div className="col-span-1 lg:col-span-8 rounded-xl p-5 relative overflow-hidden border shadow-sm" style={{ backgroundColor: lightBgColor, borderColor: borderColor }}>
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none" style={{ color: textColor }}>
                             <Sparkles size={120} />
                         </div>
 
                         <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className={`w-5 h-5 ${textColor}`} />
-                            <h3 className={`font-bold text-base ${textColor}`}>AI Coach</h3>
+                            <Sparkles className="w-5 h-5" style={{ color: textColor }} />
+                            <h3 className="font-bold text-base" style={{ color: textColor }}>AI Coach</h3>
                         </div>
 
                         <div className="relative z-10">

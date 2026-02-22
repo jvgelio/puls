@@ -38,10 +38,19 @@ export async function POST(request: NextRequest) {
     const chatId = message.chat.id;
     const text = message.text.trim();
 
+    // Check if user is already connected
+    const existingUserRows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.telegramChatId, chatId))
+      .limit(1);
+
+    const existingUser = existingUserRows[0];
+
     // Handle /start {code} command
     const startMatch = text.match(/^\/start(?:\s+([A-Z0-9]+))?$/i);
-    if (!startMatch) {
-      // Unknown command — send a helpful reply
+    if (!startMatch && !existingUser) {
+      // Unknown command & not connected
       await sendTelegramMessage(TELEGRAM_BOT_TOKEN, chatId,
         "Olá! Para conectar sua conta PULS, acesse o app e clique em <b>Conectar Telegram</b>. Você receberá um código para enviar aqui.",
         "HTML"
@@ -49,7 +58,21 @@ export async function POST(request: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    const code = startMatch[1]?.toUpperCase();
+    if (!startMatch && existingUser) {
+      // It's a connected user sending a general message - Act as AI Coach
+      try {
+        await sendTelegramMessage(TELEGRAM_BOT_TOKEN, chatId, "🤔 Pensando...");
+        const { generateBotResponse } = await import("@/lib/services/ai.service");
+        const aiResponse = await generateBotResponse(existingUser.id, text);
+        await sendTelegramMessage(TELEGRAM_BOT_TOKEN, chatId, aiResponse, "Markdown");
+      } catch (error) {
+        console.error("Error generating bot response:", error);
+        await sendTelegramMessage(TELEGRAM_BOT_TOKEN, chatId, "Desculpe, tive um problema ao tentar responder. Tente novamente mais tarde.");
+      }
+      return new NextResponse("OK", { status: 200 });
+    }
+
+    const code = startMatch?.[1]?.toUpperCase();
 
     if (!code) {
       await sendTelegramMessage(TELEGRAM_BOT_TOKEN, chatId,

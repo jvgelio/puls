@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db/client";
 import { activities } from "@/lib/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
@@ -163,52 +163,63 @@ export async function getPersonalRecords(userId: string) {
 /**
  * Get training load trend
  */
-export const getTrainingLoadTrend = cache(async (userId: string, days: number = 30) => {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+export async function getTrainingLoadTrend(userId: string, days: number = 30) {
+  const fetcher = unstable_cache(
+    async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
 
-  const allActivities = await db.query.activities.findMany({
-    where: eq(activities.userId, userId),
-    orderBy: [desc(activities.startDate)],
-    columns: {
-      id: true,
-      startDate: true,
-      movingTimeSeconds: true,
-      distanceMeters: true,
-      averageHeartrate: true,
-      totalElevationGain: true,
-      streamsPayload: true,
+      const allActivities = await db.query.activities.findMany({
+        where: eq(activities.userId, userId),
+        orderBy: [desc(activities.startDate)],
+        columns: {
+          id: true,
+          startDate: true,
+          movingTimeSeconds: true,
+          distanceMeters: true,
+          averageHeartrate: true,
+          totalElevationGain: true,
+          streamsPayload: true,
+        },
+      });
+
+      // Group by day
+      const dailyLoad: Record<string, number> = {};
+
+      for (const activity of allActivities) {
+        if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
+
+        const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
+
+        // First try to calculate an authentic TRIMP based on real heartrate zones
+        let load = calculateTRIMP(activity);
+
+        // If streams are unavailable, fallback to simple estimation
+        if (load === null) {
+          //@ts-ignore - internal loose type
+          load = calculateSimpleLoad(activity);
+        }
+
+        dailyLoad[dateKey] = (dailyLoad[dateKey] || 0) + load;
+      }
+
+      // Ensure today is in the record if we want current metrics
+      const todayKey = new Date().toISOString().split("T")[0];
+      if (!dailyLoad[todayKey]) {
+        dailyLoad[todayKey] = 0;
+      }
+
+      return dailyLoad;
+    },
+    [`training-load-${userId}-${days}`],
+    {
+      revalidate: 3600, // 1 hour
+      tags: [`user-${userId}-activities`],
     }
-  });
+  );
 
-  // Group by day
-  const dailyLoad: Record<string, number> = {};
-
-  for (const activity of allActivities) {
-    if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
-
-    const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
-
-    // First try to calculate an authentic TRIMP based on real heartrate zones
-    let load = calculateTRIMP(activity);
-
-    // If streams are unavailable, fallback to simple estimation
-    if (load === null) {
-      //@ts-ignore - internal loose type
-      load = calculateSimpleLoad(activity);
-    }
-
-    dailyLoad[dateKey] = (dailyLoad[dateKey] || 0) + load;
-  }
-
-  // Ensure today is in the record if we want current metrics
-  const todayKey = new Date().toISOString().split("T")[0];
-  if (!dailyLoad[todayKey]) {
-    dailyLoad[todayKey] = 0;
-  }
-
-  return dailyLoad;
-});
+  return fetcher();
+}
 
 /**
  * Calculate authentic TRIMP (Training Impulse) using Banister's formula and real HR streams
@@ -358,46 +369,57 @@ export function calculateFitnessFatigue(
 /**
  * Get daily load and count for heatmap (e.g. 180 days)
  */
-export const getHeatmapData = cache(async (userId: string, days: number = 180) => {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+export async function getHeatmapData(userId: string, days: number = 180) {
+  const fetcher = unstable_cache(
+    async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
 
-  const allActivities = await db.query.activities.findMany({
-    where: eq(activities.userId, userId),
-    orderBy: [desc(activities.startDate)],
-    columns: {
-      id: true,
-      startDate: true,
-      movingTimeSeconds: true,
-      distanceMeters: true,
-      averageHeartrate: true,
-      totalElevationGain: true,
-      streamsPayload: true,
+      const allActivities = await db.query.activities.findMany({
+        where: eq(activities.userId, userId),
+        orderBy: [desc(activities.startDate)],
+        columns: {
+          id: true,
+          startDate: true,
+          movingTimeSeconds: true,
+          distanceMeters: true,
+          averageHeartrate: true,
+          totalElevationGain: true,
+          streamsPayload: true,
+        },
+      });
+
+      const dailyStats: Record<string, { date: Date; load: number; count: number }> = {};
+
+      for (const activity of allActivities) {
+        if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
+
+        const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
+
+        let load = calculateTRIMP(activity);
+        if (load === null) {
+          //@ts-ignore
+          load = calculateSimpleLoad(activity);
+        }
+
+        if (!dailyStats[dateKey]) {
+          const dateNoTime = new Date(activity.startDate);
+          dateNoTime.setHours(0, 0, 0, 0);
+          dailyStats[dateKey] = { date: dateNoTime, load: 0, count: 0 };
+        }
+
+        dailyStats[dateKey].load += load;
+        dailyStats[dateKey].count += 1;
+      }
+
+      return Object.values(dailyStats).sort((a, b) => a.date.getTime() - b.date.getTime());
+    },
+    [`heatmap-${userId}-${days}`],
+    {
+      revalidate: 3600, // 1 hour
+      tags: [`user-${userId}-activities`],
     }
-  });
+  );
 
-  const dailyStats: Record<string, { date: Date, load: number, count: number }> = {};
-
-  for (const activity of allActivities) {
-    if (!activity.startDate || new Date(activity.startDate) < startDate) continue;
-
-    const dateKey = new Date(activity.startDate).toISOString().split("T")[0];
-
-    let load = calculateTRIMP(activity);
-    if (load === null) {
-      //@ts-ignore
-      load = calculateSimpleLoad(activity);
-    }
-
-    if (!dailyStats[dateKey]) {
-      const dateNoTime = new Date(activity.startDate);
-      dateNoTime.setHours(0, 0, 0, 0);
-      dailyStats[dateKey] = { date: dateNoTime, load: 0, count: 0 };
-    }
-
-    dailyStats[dateKey].load += load;
-    dailyStats[dateKey].count += 1;
-  }
-
-  return Object.values(dailyStats).sort((a, b) => a.date.getTime() - b.date.getTime());
-});
+  return fetcher();
+}

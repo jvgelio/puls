@@ -183,14 +183,16 @@ describe("getWeeklyStats", () => {
       },
     ];
 
+    // @ts-expect-error mockResolvedValue is dynamically added by bun:test mock
     mockFindManyActivities.mockResolvedValue(dummyActivities);
 
     const stats = await getWeeklyStats(userId);
 
     expect(mockFindManyActivities).toHaveBeenCalled();
-    const args = mockFindManyActivities.mock.calls[0][0];
+    // @ts-expect-error bun:test mock.calls tuple typings are loose
+    const args = mockFindManyActivities.mock.calls[0][0] as any;
 
-    const whereInspect = inspect(args.where, { depth: null, colors: false });
+    const whereInspect = inspect(args?.where, { depth: null, colors: false });
 
     // Assert that the query includes the start_date filter
     expect(whereInspect).toContain("start_date");

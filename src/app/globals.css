@@ -38,6 +38,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Training Zones */
+  --color-zone-transition: var(--zone-transition);
+  --color-zone-fresh: var(--zone-fresh);
+  --color-zone-neutral: var(--zone-neutral);
+  --color-zone-optimal: var(--zone-optimal);
+  --color-zone-risk: var(--zone-risk);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -80,6 +88,18 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Training Zones - Light */
+  --zone-transition: oklch(0.705 0.213 47.59);
+  /* orange-500 */
+  --zone-fresh: oklch(0.72 0.16 230);
+  /* cyan-500 */
+  --zone-neutral: oklch(0.627 0.003 256.45);
+  /* gray-500 */
+  --zone-optimal: oklch(0.723 0.219 149.58);
+  /* green-500 */
+  --zone-risk: oklch(0.627 0.258 29.23);
+  /* red-500 */
 }
 
 .dark {
@@ -114,6 +134,13 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Training Zones - Dark */
+  --zone-transition: oklch(0.75 0.15 47.59);
+  --zone-fresh: oklch(0.75 0.12 230);
+  --zone-neutral: oklch(0.6 0.003 256.45);
+  --zone-optimal: oklch(0.75 0.15 149.58);
+  --zone-risk: oklch(0.65 0.2 29.23);
 }
 
 @layer base {

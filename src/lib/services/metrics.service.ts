@@ -325,13 +325,17 @@ export function calculateFitnessFatigue(
   let ctlYesterday = 0;
   let atlYesterday = 0;
 
+  const ctlConstant = Math.exp(-1 / 42);
+  const atlConstant = Math.exp(-1 / 7);
+
   for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split("T")[0];
     const load = dailyLoad[dateStr] || 0;
 
-    const ctlToday = ctlYesterday + (load - ctlYesterday) / 42;
-    const atlToday = atlYesterday + (load - atlYesterday) / 7;
-    const tsbToday = ctlYesterday - atlYesterday;
+    // Standard TSS/CTL/ATL exponential moving average formulas
+    const ctlToday = ctlYesterday * ctlConstant + load * (1 - ctlConstant);
+    const atlToday = atlYesterday * atlConstant + load * (1 - atlConstant);
+    const tsbToday = ctlYesterday - atlYesterday; // TSB is typically yesterday's CTL - yesterday's ATL
 
     result[dateStr] = {
       load,

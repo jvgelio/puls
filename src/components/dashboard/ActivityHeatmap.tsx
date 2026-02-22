@@ -10,12 +10,12 @@ interface HeatmapProps {
     days?: number;
 }
 
-export function ActivityHeatmap({ activities, days = 180 }: HeatmapProps) {
+export function ActivityHeatmap({ activities, days = 90 }: HeatmapProps) {
     const { grid, maxLoad } = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const startDate = subDays(today, days - 1); // Get roughly past 6 months
+        const startDate = subDays(today, days - 1); // Get roughly past 3 months
 
         // Ensure start date aligns with Sunday to make a perfect grid
         while (startDate.getDay() !== 0) {
@@ -100,28 +100,28 @@ export function ActivityHeatmap({ activities, days = 180 }: HeatmapProps) {
         <Card className="flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-lg">Consistência</CardTitle>
+                    <CardTitle className="text-lg font-bold">Consistência</CardTitle>
                     <CardDescription>Últimos {days} dias de atividade</CardDescription>
                 </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-x-auto pb-4 pt-2">
+            <CardContent className="flex-1 flex flex-col justify-center pb-4 pt-2 overflow-hidden">
                 {!mounted ? (
                     <div className="flex h-[115px] items-center justify-center">
                         <span className="text-xs text-muted-foreground animate-pulse">Carregando mapa de calor...</span>
                     </div>
                 ) : (
                     <>
-                        <div className="min-w-[700px]">
+                        <div className="w-full">
                             <div className="flex text-xs text-muted-foreground mb-2 ml-[30px]">
                                 {months.map((m, i) => (
-                                    <div key={i} style={{ width: `${m.colSpan * 16}px`, minWidth: `${m.colSpan * 16}px` }} className="capitalize text-left">
+                                    <div key={i} style={{ width: `${m.colSpan * 14}px`, minWidth: `${m.colSpan * 14}px` }} className="capitalize text-left">
                                         {m.label}
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="flex gap-1 h-[115px]">
-                                <div className="grid grid-rows-7 gap-1 text-[10px] text-muted-foreground pr-2 w-7 items-center">
+                            <div className="flex gap-1 h-[105px]">
+                                <div className="grid grid-rows-7 gap-1 text-[9px] text-muted-foreground pr-1 w-7 items-center">
                                     <span>Dom</span>
                                     <span className="opacity-0">Seg</span>
                                     <span>Ter</span>
@@ -131,13 +131,13 @@ export function ActivityHeatmap({ activities, days = 180 }: HeatmapProps) {
                                     <span>Sáb</span>
                                 </div>
 
-                                <div className="flex gap-1 flex-1">
+                                <div className="flex gap-1">
                                     {grid.map((week, weekIdx) => (
                                         <div key={weekIdx} className="grid grid-rows-7 gap-1">
                                             {week.map((day, dayIdx) => (
                                                 <div
                                                     key={dayIdx}
-                                                    className={`w-3 h-3 rounded-[2px] ${getColor(day.load)} transition-colors hover:ring-1 hover:ring-primary/50 relative group cursor-pointer`}
+                                                    className={`w-[10px] h-[10px] md:w-[11px] md:h-[11px] rounded-[1.5px] ${getColor(day.load)} transition-colors hover:ring-1 hover:ring-primary/50 relative group cursor-pointer`}
                                                 >
                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 p-2 hidden group-hover:block z-50 pointer-events-none">
                                                         <div className="bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow-md border whitespace-nowrap">

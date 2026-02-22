@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Metrics (Fitness, Fatigue, Form)
-    const trainingLoadTrend = await getTrainingLoadTrend(userId, 90);
+    const trainingLoadTrend = await getTrainingLoadTrend(userId, 180);
     const fitnessFatigueData = calculateFitnessFatigue(trainingLoadTrend);
     const todayStr = new Date().toISOString().split("T")[0];
     const currentMetrics = fitnessFatigueData[todayStr] || { ctl: 0, atl: 0, tsb: 0 };

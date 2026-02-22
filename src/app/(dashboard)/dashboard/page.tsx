@@ -56,7 +56,7 @@ export default async function DashboardPage() {
   const [stats, recentActivities, trainingLoad, monthlyStats, heatmapData, personalRecords, goals] = await Promise.all([
     getWeeklyStats(userId),
     getUserActivities(userId, { limit: 10 }),
-    getTrainingLoadTrend(userId, 90), // 90 days to warm up EWMA
+    getTrainingLoadTrend(userId, 180), // 180 days to fully warm up EWMA (42 days constant)
     getMonthlyStats(userId),
     getHeatmapData(userId, 180), // 180 days for heatmap
     getPersonalRecords(userId),
@@ -105,15 +105,15 @@ export default async function DashboardPage() {
 
       {/* Row 1: Status & Fitness - Swapped positions */}
       <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-4 flex flex-col justify-center">
+        <div className="lg:col-span-4 self-start">
           <FitnessChartCard
             totalValue={Math.round(currentFitness).toString()}
             trendPercent={fitnessTrendPercent}
             data={last7DaysFitness}
-            className="h-full"
+            className="h-auto"
           />
         </div>
-        <div className="lg:col-span-8">
+        <div className="lg:col-span-8 self-start">
           <HeroStatusCard
             tsb={trainingLoadData[trainingLoadData.length - 1]?.tsb || 0}
           />

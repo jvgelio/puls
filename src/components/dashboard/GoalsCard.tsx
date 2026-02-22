@@ -1,66 +1,101 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { formatDistanceFromMeters } from "@/lib/utils/formatters";
-import { Target, TrendingUp, Activity } from "lucide-react";
+import { formatDistanceFromMeters, formatPace } from "@/lib/utils/formatters";
+import { Target, Trash2 } from "lucide-react";
+import { CreateGoalDialog } from "./CreateGoalDialog";
+import { deleteGoalAction } from "@/app/actions/goals.actions";
+import { toast } from "sonner";
+import { GoalProgress } from "@/lib/services/goals.service";
 
 interface GoalsCardProps {
-    currentFitness: number;
-    weeklyDistanceMeters: number;
+    goals?: GoalProgress[];
 }
 
-export function GoalsCard({ currentFitness, weeklyDistanceMeters }: GoalsCardProps) {
-    // Hardcoded goals for now - these could be fetched from DB/settings later
-    const TARGET_FITNESS = 80;
-    const TARGET_WEEKLY_KM = 40;
-
-    const currentWeeklyKm = weeklyDistanceMeters / 1000;
-
-    const fitnessProgress = Math.min((currentFitness / TARGET_FITNESS) * 100, 100);
-    const volumeProgress = Math.min((currentWeeklyKm / TARGET_WEEKLY_KM) * 100, 100);
+export function GoalsCard({ goals = [] }: GoalsCardProps) {
+    const handleDelete = async (goalId: string) => {
+        try {
+            await deleteGoalAction(goalId);
+            toast.success("Meta removida!", {
+                description: "A meta foi apagada com sucesso.",
+            });
+        } catch (e) {
+            toast.error("Erro ao remover", {
+                description: "Ocorreu um problema ao remover a meta.",
+            });
+        }
+    };
 
     return (
         <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Target className="w-5 h-5 text-primary" />
-                    Metas 2026
+                    Metas
                 </CardTitle>
+                <CreateGoalDialog />
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center gap-6">
+            <CardContent className="flex-1 flex flex-col gap-6 pt-2">
 
-                {/* Weekly Volume Goal */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-1 font-medium text-muted-foreground">
-                            <Activity className="w-4 h-4" /> Volume Semanal
-                        </span>
-                        <span className="font-bold">
-                            {formatDistanceFromMeters(weeklyDistanceMeters)} <span className="text-muted-foreground font-normal text-xs">/ {TARGET_WEEKLY_KM}km</span>
-                        </span>
+                {goals.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                        <Target className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                        <p className="text-sm font-medium">Nenhuma meta cadastrada.</p>
+                        <p className="text-xs text-muted-foreground">Adicione um objetivo para acompanhar sua evolução.</p>
                     </div>
-                    <Progress value={volumeProgress} className="h-2 bg-blue-100 dark:bg-blue-950" indicatorColor="bg-blue-500" />
-                    <p className="text-[10px] text-muted-foreground text-right">
-                        {volumeProgress >= 100 ? 'Meta atingida!' : `${(TARGET_WEEKLY_KM - currentWeeklyKm).toFixed(1)}km restantes`}
-                    </p>
-                </div>
+                ) : (
+                    <div className="space-y-6">
+                        {goals.map((item) => (
+                            <div key={item.goal.id} className="space-y-2 group">
+                                <div className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-1 font-medium text-foreground">
+                                        <span className="line-clamp-1">{item.goal.name}</span>
+                                        {item.goal.goalType === "race" && (
+                                            <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500 px-1.5 py-0.5 rounded ml-2 border border-amber-200 dark:border-amber-800">
+                                                Prova
+                                            </span>
+                                        )}
+                                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground ml-2">
+                                            {item.goal.sportType === "Run" ? "Corrida" :
+                                                item.goal.sportType === "TrailRun" ? "Trail Run" :
+                                                    item.goal.sportType === "Ride" ? "Ciclismo" :
+                                                        item.goal.sportType === "Swim" ? "Natação" : item.goal.sportType}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-lg">
+                                            {item.goal.goalType === "race"
+                                                ? (item.goal.targetValue ? `${parseFloat(item.goal.targetValue).toFixed(1)}km` : "-")
+                                                : (item.goal.metric === "distance"
+                                                    ? `${parseFloat(item.goal.targetValue || "0").toFixed(1)}km`
+                                                    : formatPace(parseFloat(item.goal.targetValue || "0") * 60, 1).replace(" /km", ""))
+                                            }
+                                        </span>
+                                        <button
+                                            onClick={() => handleDelete(item.goal.id)}
+                                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-1"
+                                            title="Remover Meta"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
 
-                {/* CTL/Fitness Goal */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-1 font-medium text-muted-foreground">
-                            <TrendingUp className="w-4 h-4" /> Forma Física (CTL)
-                        </span>
-                        <span className="font-bold">
-                            {Math.round(currentFitness)} <span className="text-muted-foreground font-normal text-xs">/ {TARGET_FITNESS}</span>
-                        </span>
+                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                    <span>Para: {new Date(item.goal.deadline).toLocaleDateString('pt-BR')}</span>
+                                    <span className="flex items-center gap-2">
+                                        {item.goal.elevationGain && `⛰️ ${item.goal.elevationGain}m D+`}
+                                        {item.goal.goalType === "objective" && (
+                                            <span>
+                                                Alvo: {item.goal.metric === "distance" ? "Distância" : "Pace"}
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <Progress value={fitnessProgress} className="h-2 bg-emerald-100 dark:bg-emerald-950" indicatorColor="bg-emerald-500" />
-                    <p className="text-[10px] text-muted-foreground text-right">
-                        {fitnessProgress >= 100 ? 'Meta atingida!' : `${Math.round(TARGET_FITNESS - currentFitness)} pontos restantes`}
-                    </p>
-                </div>
+                )}
 
             </CardContent>
         </Card>

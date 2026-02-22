@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getWeeklyStats, getUserActivities, getMonthlyStats } from "@/lib/services/activity.service";
 import { getTrainingLoadTrend, calculateFitnessFatigue, getHeatmapData, getPersonalRecords } from "@/lib/services/metrics.service";
+import { getUserGoals } from "@/lib/services/goals.service";
 import {
   needsHistoricalImport,
   startBackgroundImport,
@@ -52,13 +53,14 @@ export default async function DashboardPage() {
   const telegramConnected = userRow?.telegramChatId != null;
 
   // Get dashboard data
-  const [stats, recentActivities, trainingLoad, monthlyStats, heatmapData, personalRecords] = await Promise.all([
+  const [stats, recentActivities, trainingLoad, monthlyStats, heatmapData, personalRecords, goals] = await Promise.all([
     getWeeklyStats(userId),
     getUserActivities(userId, { limit: 10 }),
     getTrainingLoadTrend(userId, 90), // 90 days to warm up EWMA
     getMonthlyStats(userId),
     getHeatmapData(userId, 180), // 180 days for heatmap
     getPersonalRecords(userId),
+    getUserGoals(userId),
   ]);
 
   const fitnessFatigueDataArray = calculateFitnessFatigue(trainingLoad);
@@ -118,12 +120,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 2: Consistency & Progress - "Como está minha semana?" */}
+      {/* Row 2: Consistency & Progress - "Como está minha semana / Minhas Metas?" */}
       <div className="grid gap-8 lg:grid-cols-2">
-        <GoalsCard
-          currentFitness={currentFitness}
-          weeklyDistanceMeters={stats.totalDistance}
-        />
+        <GoalsCard goals={goals} />
         <ActivityHeatmap activities={heatmapData} days={180} />
       </div>
 

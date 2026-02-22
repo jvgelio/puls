@@ -99,11 +99,29 @@ export const aiFeedbacks = pgTable("ai_feedbacks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Goals table
+export const goals = pgTable("goals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  goalType: varchar("goal_type", { length: 50 }).notNull().default("objective"), // 'race' | 'objective'
+  sportType: varchar("sport_type", { length: 50 }).notNull(),
+  metric: varchar("metric", { length: 50 }),
+  targetValue: decimal("target_value", { precision: 12, scale: 2 }),
+  elevationGain: integer("elevation_gain"),
+  deadline: timestamp("deadline").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   oauthToken: one(oauthTokens),
   activities: many(activities),
   feedbacks: many(aiFeedbacks),
+  goals: many(goals),
 }));
 
 export const oauthTokensRelations = relations(oauthTokens, ({ one }) => ({
@@ -132,6 +150,13 @@ export const aiFeedbacksRelations = relations(aiFeedbacks, ({ one }) => ({
   }),
 }));
 
+export const goalsRelations = relations(goals, ({ one }) => ({
+  user: one(users, {
+    fields: [goals.userId],
+    references: [users.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -141,3 +166,5 @@ export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type AIFeedback = typeof aiFeedbacks.$inferSelect;
 export type NewAIFeedback = typeof aiFeedbacks.$inferInsert;
+export type Goal = typeof goals.$inferSelect;
+export type NewGoal = typeof goals.$inferInsert;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sparkles, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,47 +68,47 @@ export function HeroStatusCard({ tsb }: HeroStatusCardProps) {
     }
 
     return (
-        <Card className={`overflow-hidden border-t-4 ${borderColor}`} style={{ borderTopColor: `var(--${textColor.split('-')[1]}-500)` }}>
-            <div className={`h-2 w-full ${zoneColor}`} />
-            <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+        <Card className={`overflow-hidden border-t-4 h-full ${borderColor}`} style={{ borderTopColor: `var(--${textColor.split('-')[1]}-500)` }}>
+            <CardHeader className="pb-1 pt-4 flex flex-row items-center justify-between space-y-0 relative z-10 bg-card">
+                <div className="flex items-center gap-1.5">
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Status do Dia</CardTitle>
+                    <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[280px] p-3 text-xs leading-relaxed">
+                                <p className="font-bold mb-1.5 border-b pb-1 text-[13px]">Balanço de Estresse (TSB)</p>
+                                <p className="mb-2">Representa a balança entre seu preparo físico acumulado e seu cansaço recente (CTL - ATL).</p>
+                                <ul className="space-y-1 text-muted-foreground">
+                                    <li><span className="font-bold text-foreground">Positivo (+):</span> Corpo descansado. Ideal para provas.</li>
+                                    <li><span className="font-bold text-foreground">Negativo (-):</span> Corpo fadigado. Estágio comum para construir resistência, porém evite o exagero.</li>
+                                </ul>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+            </CardHeader>
+
+            <CardContent className="p-6 pt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
 
                     {/* Status do Dia (TSB) */}
-                    <div className="col-span-1 space-y-4">
+                    <div className="col-span-1 lg:col-span-4 space-y-4">
                         <div>
-                            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status do Dia</h2>
-                            <div className="flex items-baseline gap-2">
-                                <span className={`text-4xl font-black ${textColor}`}>
+                            <div className="flex items-baseline gap-2 mb-2">
+                                <span className={`text-5xl font-black tracking-tighter ${textColor}`}>
                                     {roundedTsb > 0 ? "+" : ""}{roundedTsb}
                                 </span>
-                                <span className="text-xl font-bold bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
-                                    TSB
-                                </span>
                             </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`${textColor} ${lightBgColor} ${borderColor} font-bold text-sm px-3 py-1`}>
+                            <Badge variant="outline" className={`${textColor} ${lightBgColor} ${borderColor} font-bold text-sm px-3 py-1 shadow-sm`}>
                                 {zoneName}
                             </Badge>
-                            <TooltipProvider>
-                                <Tooltip delayDuration={0}>
-                                    <TooltipTrigger asChild>
-                                        <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="w-64 p-3">
-                                        <p className="text-sm font-semibold mb-1">Training Stress Balance (Forma)</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Indica sua aptidão para provas (positivo) ou risco de overtraining (muito negativo).
-                                        </p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
                         </div>
                     </div>
 
                     {/* AI Coach Insight */}
-                    <div className={`col-span-1 lg:col-span-2 rounded-xl p-5 relative overflow-hidden ${lightBgColor} ${borderColor} border`}>
+                    <div className={`col-span-1 lg:col-span-8 rounded-xl p-5 relative overflow-hidden ${lightBgColor} ${borderColor} border shadow-sm`}>
                         <div className={`absolute top-0 right-0 p-4 opacity-5 pointer-events-none ${textColor}`}>
                             <Sparkles size={120} />
                         </div>

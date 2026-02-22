@@ -10,10 +10,10 @@ import {
     formatPace,
     formatRelativeTime,
     getSportDisplayName,
-    getSportEmoji,
 } from "@/lib/utils/formatters";
 import { ChevronRight } from "lucide-react";
 import { SPORT_COLORS } from "@/lib/utils/sport-colors";
+import { SportIcon } from "@/components/ui/sport-icon";
 
 interface LastActivityCardProps {
     activity?: Activity & { feedback?: AIFeedback | null };
@@ -51,7 +51,7 @@ export function LastActivityCard({ activity }: LastActivityCardProps) {
             <CardContent className="flex-1 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${colors.bg} ${colors.text}`}>
-                        <span className="text-xl">{getSportEmoji(activity.sportType || "Run")}</span>
+                        <SportIcon sportType={activity.sportType} className="w-6 h-6" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-base line-clamp-1">{activity.name}</h3>

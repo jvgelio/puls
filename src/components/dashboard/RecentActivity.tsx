@@ -11,9 +11,9 @@ import {
   formatPace,
   formatRelativeTime,
   getSportDisplayName,
-  getSportEmoji,
 } from "@/lib/utils/formatters";
 import { SPORT_COLORS } from "@/lib/utils/sport-colors";
+import { SportIcon } from "@/components/ui/sport-icon";
 
 interface ActivityWithFeedback extends Activity {
   feedback?: AIFeedback | null;
@@ -68,7 +68,7 @@ export function RecentActivity({ activities }: RecentActivityProps) {
               <div className="flex items-start justify-between p-4 rounded-lg border hover:bg-accent transition-colors">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{getSportEmoji(activity.sportType || "Run")}</span>
+                    <SportIcon sportType={activity.sportType} className="w-5 h-5 text-muted-foreground" />
                     <span className="font-medium line-clamp-1 flex-1">{activity.name}</span>
                     <Badge variant="secondary" className={`${colors.bg} ${colors.text} border-none`}>
                       {getSportDisplayName(activity.sportType || "Treino")}

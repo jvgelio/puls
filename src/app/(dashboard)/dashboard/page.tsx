@@ -9,16 +9,16 @@ import {
 import { db } from "@/lib/db/client";
 import { oauthTokens, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { StatsCards } from "@/components/dashboard/StatsCards";
+
+// New & Retained Components
+import { HeroStatusCard } from "@/components/dashboard/HeroStatusCard";
 import { FitnessChartCard } from "@/components/dashboard/FitnessChartCard";
+import { GoalsCard } from "@/components/dashboard/GoalsCard";
+import { RecentWorkoutsList } from "@/components/dashboard/RecentWorkoutsList";
 import { LastActivityCard } from "@/components/dashboard/LastActivityCard";
-import { AICoachInsightCard } from "@/components/dashboard/AICoachInsightCard";
-import { ProgressSummaryCard } from "@/components/dashboard/ProgressSummaryCard";
-import { TrainingLoadChart } from "@/components/dashboard/TrainingLoadChart";
+import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
 import { ImportBanner } from "@/components/dashboard/ImportBanner";
 import { TelegramConnect } from "@/components/settings/TelegramConnect";
-import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
-import { PersonalRecordsCard } from "@/components/dashboard/PersonalRecordsCard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
   const allActivities = await getUserActivities(userId, { limit: 100 });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -99,36 +99,40 @@ export default async function DashboardPage() {
       </div>
 
       {needsImport && <ImportBanner userId={userId} />}
-
       {!telegramConnected && <TelegramConnect initialConnected={false} />}
 
-      <StatsCards stats={stats} />
-
-      <div className="grid gap-8 mb-8 md:grid-cols-7">
-        <div className="col-span-full xl:col-span-5">
-          <ActivityHeatmap activities={heatmapData} days={180} />
-        </div>
-        <div className="col-span-full xl:col-span-2">
-          <PersonalRecordsCard records={personalRecords} />
-        </div>
-      </div>
-
+      {/* Row 1: Status & Fitness - Swapped positions */}
       <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          <TrainingLoadChart data={trainingLoadData} />
-        </div>
-        <div className="lg:col-span-4 flex flex-col gap-8">
+        <div className="lg:col-span-4 flex flex-col justify-center">
           <FitnessChartCard
             totalValue={Math.round(currentFitness).toString()}
             trendPercent={fitnessTrendPercent}
             data={last7DaysFitness}
+            className="h-full"
           />
-          <LastActivityCard activity={recentActivities[0]} />
-          <AICoachInsightCard />
-          <ProgressSummaryCard stats={monthlyStats} />
+        </div>
+        <div className="lg:col-span-8">
+          <HeroStatusCard
+            tsb={trainingLoadData[trainingLoadData.length - 1]?.tsb || 0}
+          />
         </div>
       </div>
 
+      {/* Row 2: Consistency & Progress - "Como está minha semana?" */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <GoalsCard
+          currentFitness={currentFitness}
+          weeklyDistanceMeters={stats.totalDistance}
+        />
+        <ActivityHeatmap activities={heatmapData} days={180} />
+      </div>
+
+      {/* Row 3: Activities & History - "O que eu fiz recentemente?" */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* We keep LastActivityCard as requested */}
+        <LastActivityCard activity={recentActivities[0]} />
+        <RecentWorkoutsList activities={recentActivities.slice(1)} />
+      </div>
     </div>
   );
 }

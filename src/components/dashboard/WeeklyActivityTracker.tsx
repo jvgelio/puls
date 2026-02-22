@@ -6,6 +6,7 @@ import { SPORT_COLORS } from "@/lib/utils/sport-colors";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getSportDisplayName } from "@/lib/utils/formatters";
 
 interface WeeklyActivityTrackerProps {
     recentActivities: Activity[];
@@ -42,9 +43,16 @@ export function WeeklyActivityTracker({ recentActivities }: WeeklyActivityTracke
                 ? SPORT_COLORS[mainSport.sportType]
                 : SPORT_COLORS.default;
 
+            const fullLabel = format(date, "EEEE, d 'de' MMMM", { locale: ptBR });
+            const activityCount = dayActivities.length;
+            const mainSportName = mainSport ? getSportDisplayName(mainSport.sportType || "Treino") : "";
+
             return {
                 date,
                 label: format(date, "eee", { locale: ptBR }),
+                fullLabel,
+                activityCount,
+                mainSportName,
                 hasTraining: dayActivities.length > 0,
                 activities: dayActivities,
                 colors,
@@ -59,7 +67,11 @@ export function WeeklyActivityTracker({ recentActivities }: WeeklyActivityTracke
                     {days.map((day, i) => (
                         <Tooltip key={i} delayDuration={100}>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105">
+                                <button
+                                    type="button"
+                                    className="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105 appearance-none bg-transparent border-0 p-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg outline-none"
+                                    aria-label={`${day.fullLabel}: ${day.hasTraining ? `${day.activityCount} atividades, principal: ${day.mainSportName}` : "Nenhuma atividade"}`}
+                                >
                                     <div
                                         className="w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all"
                                         style={{
@@ -70,7 +82,7 @@ export function WeeklyActivityTracker({ recentActivities }: WeeklyActivityTracke
                                     <span className="text-xs uppercase text-muted-foreground font-medium">
                                         {day.label}
                                     </span>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             {day.hasTraining && (
                                 <TooltipContent>

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db/client";
 import { activities } from "@/lib/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
@@ -162,7 +163,7 @@ export async function getPersonalRecords(userId: string) {
 /**
  * Get training load trend
  */
-export async function getTrainingLoadTrend(userId: string, days: number = 30) {
+export const getTrainingLoadTrend = cache(async (userId: string, days: number = 30) => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -207,7 +208,7 @@ export async function getTrainingLoadTrend(userId: string, days: number = 30) {
   }
 
   return dailyLoad;
-}
+});
 
 /**
  * Calculate authentic TRIMP (Training Impulse) using Banister's formula and real HR streams
@@ -335,7 +336,10 @@ export function calculateFitnessFatigue(
     // Standard TSS/CTL/ATL exponential moving average formulas
     const ctlToday = ctlYesterday * ctlConstant + load * (1 - ctlConstant);
     const atlToday = atlYesterday * atlConstant + load * (1 - atlConstant);
-    const tsbToday = ctlYesterday - atlYesterday; // TSB is typically yesterday's CTL - yesterday's ATL
+
+    // TSB calculates your form. Using today's values makes the dashboard highly responsive
+    // to workouts just synced, giving immediate feedback on their current "Status do Dia".
+    const tsbToday = ctlToday - atlToday;
 
     result[dateStr] = {
       load,
@@ -354,7 +358,7 @@ export function calculateFitnessFatigue(
 /**
  * Get daily load and count for heatmap (e.g. 180 days)
  */
-export async function getHeatmapData(userId: string, days: number = 180) {
+export const getHeatmapData = cache(async (userId: string, days: number = 180) => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -396,4 +400,4 @@ export async function getHeatmapData(userId: string, days: number = 180) {
   }
 
   return Object.values(dailyStats).sort((a, b) => a.date.getTime() - b.date.getTime());
-}
+});

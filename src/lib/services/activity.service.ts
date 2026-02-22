@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db/client";
 import { activities, aiFeedbacks, users } from "@/lib/db/schema";
 import { createStravaClient } from "@/lib/strava/api";
@@ -147,10 +148,10 @@ export async function processActivity(
 /**
  * Get activities for a user with pagination
  */
-export async function getUserActivities(
+export const getUserActivities = cache(async (
   userId: string,
   options: { limit?: number; offset?: number } = {}
-) {
+) => {
   const { limit = 20, offset = 0 } = options;
 
   return db.query.activities.findMany({
@@ -162,7 +163,7 @@ export async function getUserActivities(
       feedback: true,
     },
   });
-}
+});
 
 /**
  * Get a single activity with feedback

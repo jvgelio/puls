@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getWeeklyStats, getUserActivities, getMonthlyStats } from "@/lib/services/activity.service";
-import { getTrainingLoadTrend, calculateFitnessFatigue, getHeatmapData, getPersonalRecords } from "@/lib/services/metrics.service";
+import { getUserActivities } from "@/lib/services/activity.service";
+import { getTrainingLoadTrend, calculateFitnessFatigue, getHeatmapData } from "@/lib/services/metrics.service";
 import { getUserGoals } from "@/lib/services/goals.service";
 import {
   needsHistoricalImport,
@@ -11,7 +12,6 @@ import { db } from "@/lib/db/client";
 import { oauthTokens, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-// New & Retained Components
 import { HeroStatusCard } from "@/components/dashboard/HeroStatusCard";
 import { FitnessChartCard } from "@/components/dashboard/FitnessChartCard";
 import { GoalsCard } from "@/components/dashboard/GoalsCard";
@@ -20,6 +20,7 @@ import { LastActivityCard } from "@/components/dashboard/LastActivityCard";
 import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
 import { ImportBanner } from "@/components/dashboard/ImportBanner";
 import { TelegramConnect } from "@/components/settings/TelegramConnect";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -30,6 +31,61 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
+  return (
+    <div className="space-y-8 pb-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Bem-vindo de volta, {session.user.name?.split(" ")[0]}!
+        </p>
+      </div>
+
+      <Suspense fallback={<Skeleton className="h-[68px] w-full rounded-xl" />}>
+        <TopBanners userId={userId} />
+      </Suspense>
+
+      {/* Row 1: Status & Fitness */}
+      <div className="grid gap-8 lg:grid-cols-12">
+        <div className="lg:col-span-4 self-start">
+          <Suspense fallback={<Skeleton className="h-[150px] w-full rounded-xl" />}>
+            <FitnessSection userId={userId} />
+          </Suspense>
+        </div>
+        <div className="lg:col-span-8 self-start">
+          <Suspense fallback={<Skeleton className="h-[150px] w-full rounded-xl" />}>
+            <StatusSection userId={userId} />
+          </Suspense>
+        </div>
+      </div>
+
+      {/* Row 2: Consistency & Progress */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <Suspense fallback={<Skeleton className="h-[300px] w-full rounded-xl" />}>
+          <GoalsSection userId={userId} />
+        </Suspense>
+        <Suspense fallback={<Skeleton className="h-[300px] w-full rounded-xl" />}>
+          <HeatmapSection userId={userId} />
+        </Suspense>
+      </div>
+
+      {/* Row 3: Activities & History */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-xl" />}>
+          <LastActivitySection userId={userId} />
+        </Suspense>
+        <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-xl" />}>
+          <RecentWorkoutsSection userId={userId} />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// SERVER COMPONENTS FOR STREAMING
+// -------------------------------------------------------------
+
+async function TopBanners({ userId }: { userId: string }) {
   // Check if user needs historical import
   const needsImport = await needsHistoricalImport(userId);
 
@@ -52,21 +108,20 @@ export default async function DashboardPage() {
     .limit(1);
   const telegramConnected = userRow?.telegramChatId != null;
 
-  // Get dashboard data
-  const [stats, recentActivities, trainingLoad, monthlyStats, heatmapData, personalRecords, goals] = await Promise.all([
-    getWeeklyStats(userId),
-    getUserActivities(userId, { limit: 10 }),
-    getTrainingLoadTrend(userId, 180), // 180 days to fully warm up EWMA (42 days constant)
-    getMonthlyStats(userId),
-    getHeatmapData(userId, 180), // 180 days for heatmap
-    getPersonalRecords(userId),
-    getUserGoals(userId),
-  ]);
+  return (
+    <>
+      {needsImport && <ImportBanner userId={userId} />}
+      {!telegramConnected && <TelegramConnect initialConnected={false} />}
+    </>
+  );
+}
 
+async function FitnessSection({ userId }: { userId: string }) {
+  const trainingLoad = await getTrainingLoadTrend(userId, 180);
   const fitnessFatigueDataArray = calculateFitnessFatigue(trainingLoad);
   const trainingLoadData = Object.keys(fitnessFatigueDataArray)
     .sort()
-    .slice(-60) // Show only the last 60 days so EWMA has warmed up
+    .slice(-60) // Show only the last 60 days
     .map(date => ({
       date,
       load: fitnessFatigueDataArray[date].load,
@@ -77,7 +132,7 @@ export default async function DashboardPage() {
 
   const last7DaysFitness = trainingLoadData.slice(-7).map(d => {
     const dObj = new Date(d.date);
-    dObj.setHours(dObj.getHours() + 12); // avoid timezone shifts
+    dObj.setHours(dObj.getHours() + 12);
     return {
       day: ["D", "S", "T", "Q", "Q", "S", "S"][dObj.getDay()],
       value: d.ctl
@@ -88,50 +143,57 @@ export default async function DashboardPage() {
   const lastWeekFitness = trainingLoadData[trainingLoadData.length - 8]?.ctl || currentFitness;
   const fitnessTrendPercent = lastWeekFitness > 0 ? ((currentFitness - lastWeekFitness) / lastWeekFitness) * 100 : 0;
 
-  // Get all activities for the chart (last 4 weeks)
-  const allActivities = await getUserActivities(userId, { limit: 100 });
+  return (
+    <FitnessChartCard
+      totalValue={Math.round(currentFitness).toString()}
+      trendPercent={fitnessTrendPercent}
+      data={last7DaysFitness}
+      className="h-auto"
+    />
+  );
+}
+
+async function StatusSection({ userId }: { userId: string }) {
+  const trainingLoad = await getTrainingLoadTrend(userId, 180);
+  const fitnessFatigueDataArray = calculateFitnessFatigue(trainingLoad);
+  const trainingLoadData = Object.keys(fitnessFatigueDataArray)
+    .sort()
+    .slice(-60) // Show only the last 60 days
+    .map(date => ({
+      date,
+      tsb: fitnessFatigueDataArray[date].tsb,
+    }));
 
   return (
-    <div className="space-y-8 pb-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Bem-vindo de volta, {session.user.name?.split(" ")[0]}!
-        </p>
-      </div>
-
-      {needsImport && <ImportBanner userId={userId} />}
-      {!telegramConnected && <TelegramConnect initialConnected={false} />}
-
-      {/* Row 1: Status & Fitness - Swapped positions */}
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-4 self-start">
-          <FitnessChartCard
-            totalValue={Math.round(currentFitness).toString()}
-            trendPercent={fitnessTrendPercent}
-            data={last7DaysFitness}
-            className="h-auto"
-          />
-        </div>
-        <div className="lg:col-span-8 self-start">
-          <HeroStatusCard
-            tsb={trainingLoadData[trainingLoadData.length - 1]?.tsb || 0}
-          />
-        </div>
-      </div>
-
-      {/* Row 2: Consistency & Progress - "Como está minha semana / Minhas Metas?" */}
-      <div className="grid gap-8 lg:grid-cols-2">
-        <GoalsCard goals={goals} />
-        <ActivityHeatmap activities={heatmapData} days={180} />
-      </div>
-
-      {/* Row 3: Activities & History - "O que eu fiz recentemente?" */}
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* We keep LastActivityCard as requested */}
-        <LastActivityCard activity={recentActivities[0]} />
-        <RecentWorkoutsList activities={recentActivities.slice(1)} />
-      </div>
-    </div>
+    <HeroStatusCard
+      tsb={trainingLoadData[trainingLoadData.length - 1]?.tsb || 0}
+    />
   );
+}
+
+async function GoalsSection({ userId }: { userId: string }) {
+  const goals = await getUserGoals(userId);
+  return <GoalsCard goals={goals} />;
+}
+
+async function HeatmapSection({ userId }: { userId: string }) {
+  const heatmapData = await getHeatmapData(userId, 180);
+  return <ActivityHeatmap activities={heatmapData} days={90} />;
+}
+
+async function LastActivitySection({ userId }: { userId: string }) {
+  const recentActivities = await getUserActivities(userId, { limit: 10 });
+  if (recentActivities.length === 0) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center rounded-xl border border-dashed text-muted-foreground text-sm">
+        Nenhuma atividade recente.
+      </div>
+    );
+  }
+  return <LastActivityCard activity={recentActivities[0]} />;
+}
+
+async function RecentWorkoutsSection({ userId }: { userId: string }) {
+  const recentActivities = await getUserActivities(userId, { limit: 10 });
+  return <RecentWorkoutsList activities={recentActivities.slice(1)} />;
 }

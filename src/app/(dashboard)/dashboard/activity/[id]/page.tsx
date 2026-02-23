@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ActivityMap } from "@/components/dashboard/ActivityMap";
 import { ActivityCharts } from "@/components/dashboard/ActivityCharts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default async function ActivityPage(props: { params: Promise<{ id: string }> }) {
     const params = await props.params;
@@ -41,11 +42,20 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
     return (
         <div className="flex-1 space-y-8 p-8 pt-6">
             <div className="flex items-center space-x-4">
-                <Link href="/dashboard">
-                    <Button variant="outline" size="icon">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                </Link>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" asChild>
+                                <Link href="/dashboard" aria-label="Voltar para o dashboard">
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Voltar para o dashboard</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">{activity.name}</h2>
                     <p className="text-muted-foreground capitalize">{date}</p>

@@ -82,7 +82,7 @@ export function GoalsCard({ goals = [] }: GoalsCardProps) {
                                 </div>
 
                                 <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                    <span>Para: {new Date(item.goal.deadline).toLocaleDateString('pt-BR')}</span>
+                                    <span suppressHydrationWarning>Para: {new Date(item.goal.deadline).toLocaleDateString('pt-BR')}</span>
                                     <span className="flex items-center gap-2">
                                         {item.goal.elevationGain && `⛰️ ${item.goal.elevationGain}m D+`}
                                         {item.goal.goalType === "objective" && (

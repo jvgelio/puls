@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 interface ImportBannerProps {
   userId: string;
@@ -50,10 +52,11 @@ export function ImportBanner({ userId }: ImportBannerProps) {
 
   if (progress.status === "error") {
     return (
-      <Card className="border-destructive">
+      <Card className="border-destructive" role="alert">
         <CardContent className="py-4">
           <div className="flex items-center gap-2">
-            <span className="text-destructive">Erro na importação:</span>
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <span className="text-destructive font-medium">Erro na importação:</span>
             <span className="text-muted-foreground">{progress.error}</span>
           </div>
         </CardContent>
@@ -69,21 +72,23 @@ export function ImportBanner({ userId }: ImportBannerProps) {
   return (
     <Card className="border-primary">
       <CardContent className="py-4">
-        <div className="space-y-2">
+        <div className="space-y-2" aria-live="polite">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              Importando atividades dos últimos 2 meses...
-            </span>
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm font-medium">
+                Importando atividades dos últimos 2 meses...
+              </span>
+            </div>
             <span className="text-sm text-muted-foreground">
               {progress.processed} / {progress.total}
             </span>
           </div>
-          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
+          <Progress
+            value={percentage}
+            className="h-2"
+            aria-label="Progresso da importação"
+          />
           <p className="text-xs text-muted-foreground">
             Isso pode levar alguns minutos. Você pode continuar usando o app.
           </p>

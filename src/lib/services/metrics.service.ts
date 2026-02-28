@@ -11,6 +11,19 @@ export async function getWeeklyAggregates(userId: string, weeks: number = 4) {
   const results = [];
   const now = new Date();
 
+  // Calculate the absolute start date for all weeks combined to filter DB
+  const oldestWeekStart = new Date(now);
+  oldestWeekStart.setDate(now.getDate() - now.getDay() - (weeks - 1) * 7);
+  oldestWeekStart.setHours(0, 0, 0, 0);
+
+  // Fetch all activities within the total date range at once
+  const allActivities = await db.query.activities.findMany({
+    where: and(
+      eq(activities.userId, userId),
+      gte(activities.startDate, oldestWeekStart)
+    ),
+  });
+
   for (let i = 0; i < weeks; i++) {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() - i * 7);
@@ -20,12 +33,8 @@ export async function getWeeklyAggregates(userId: string, weeks: number = 4) {
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
 
-    const weekActivities = await db.query.activities.findMany({
-      where: eq(activities.userId, userId),
-    });
-
-    // Filter by date
-    const filtered = weekActivities.filter((a) => {
+    // Filter by date from the pre-fetched activities
+    const filtered = allActivities.filter((a) => {
       if (!a.startDate) return false;
       const date = new Date(a.startDate);
       return date >= weekStart && date <= weekEnd;

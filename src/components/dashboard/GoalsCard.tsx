@@ -73,8 +73,9 @@ export function GoalsCard({ goals = [] }: GoalsCardProps) {
                                         </span>
                                         <button
                                             onClick={() => handleDelete(item.goal.id)}
-                                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-1"
+                                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-1 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-md"
                                             title="Remover Meta"
+                                            aria-label={`Remover Meta: ${item.goal.name}`}
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
                                         </button>

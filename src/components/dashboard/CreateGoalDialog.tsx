@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { createGoalAction } from "@/app/actions/goals.actions";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export function CreateGoalDialog() {
@@ -180,6 +180,7 @@ export function CreateGoalDialog() {
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={loading}>
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {loading ? "Salvando..." : "Criar Meta"}
                         </Button>
                     </DialogFooter>

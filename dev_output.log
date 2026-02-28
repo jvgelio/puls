@@ -1,0 +1,28 @@
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 2.6s
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+○ Compiling /test-components ...
+ GET /test-components 200 in 8.0s (compile: 7.1s, proxy.ts: 513ms, render: 364ms)
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+⨯ Error: Unauthorized
+    at createGoalAction (src/app/actions/goals.actions.ts:10:15)
+   8 |     const session = await auth();
+   9 |     if (!session?.user?.id) {
+> 10 |         throw new Error("Unauthorized");
+     |               ^
+  11 |     }
+  12 |
+  13 |     const name = formData.get("name") as string; {
+  digest: '1757935875'
+}
+ POST /test-components 500 in 915ms (compile: 7ms, proxy.ts: 16ms, render: 892ms)
+✓ Compiled in 23ms

@@ -133,17 +133,23 @@ export function HeroStatusCard({ tsb }: HeroStatusCardProps) {
                                 </div>
                             ) : insight ? (
                                 <div className="space-y-3">
-                                    <p className={`text-sm md:text-base leading-relaxed text-foreground/90 transition-all duration-300 ${!insightExpanded ? "line-clamp-2 md:line-clamp-3" : ""}`}>
+                                    <p
+                                        id="insight-text"
+                                        className={`text-sm md:text-base leading-relaxed text-foreground/90 transition-all duration-300 ${!insightExpanded ? "line-clamp-2 md:line-clamp-3" : ""}`}
+                                    >
                                         {insight}
                                     </p>
                                     <button
                                         onClick={() => setInsightExpanded(!insightExpanded)}
-                                        className={`text-xs font-semibold flex items-center gap-1 ${textColor} hover:opacity-80 transition-opacity`}
+                                        className={`text-xs font-semibold flex items-center gap-1 ${textColor} hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm`}
+                                        aria-expanded={insightExpanded}
+                                        aria-controls="insight-text"
+                                        aria-label={insightExpanded ? "Mostrar menos do insight" : "Ler todo o insight"}
                                     >
                                         {insightExpanded ? (
-                                            <>Menos <ChevronUp className="w-3 h-3" /></>
+                                            <>Menos <ChevronUp className="w-3 h-3" aria-hidden="true" /></>
                                         ) : (
-                                            <>Ler tudo <ChevronDown className="w-3 h-3" /></>
+                                            <>Ler tudo <ChevronDown className="w-3 h-3" aria-hidden="true" /></>
                                         )}
                                     </button>
                                 </div>

@@ -1,0 +1,13 @@
+$ next dev -p "3000"
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+✓ Ready in 1301ms
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+✓ Compiled in 52ms
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+ GET /test-tooltip 200 in 2.2s (compile: 1739ms, proxy.ts: 81ms, render: 400ms)
+ GET /test-tooltip 200 in 99ms (compile: 7ms, proxy.ts: 11ms, render: 82ms)
+✓ Compiled in 15ms

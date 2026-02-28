@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
-import { users, oauthTokens } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk/v3";
 import type { processStravaActivity } from "@/trigger/strava-feedback/process-strava-activity";
@@ -60,22 +60,11 @@ export async function POST(request: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // Get user's OAuth tokens
-    const token = await db.query.oauthTokens.findFirst({
-      where: eq(oauthTokens.userId, user.id),
-    });
-
-    if (!token) {
-      console.log("Token not found for user");
-      return new NextResponse("OK", { status: 200 });
-    }
-
     // Trigger background processing via Trigger.dev
     // This returns quickly (just an HTTP call to Trigger.dev) — well within Strava's 2s limit
     await tasks.trigger<typeof processStravaActivity>("process-strava-activity", {
       stravaActivityId: event.object_id,
       userId: user.id,
-      accessToken: token.accessToken,
     });
 
     console.log(`Triggered background processing for activity ${event.object_id}`);
